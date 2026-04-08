@@ -1,0 +1,134 @@
+{
+  "log_version": "1.0",
+  "agent": "ChatGPT",
+  "consumer": "MarTwin",
+  "operation_type": "report_quotation",
+  "project": {
+    "client": "Zurich",
+    "vendor": "Squad Alpha",
+    "phase": "Fase 2",
+    "source_technology": "Oracle Reports RDF",
+    "target_technology": "HTML/JS report engine"
+  },
+  "report": {
+    "name": "CONR30524",
+    "file_name": "CONR30524.rdf",
+    "module": "Contabilidad / Cobranzas",
+    "category": "report"
+  },
+  "quotation": {
+    "complexity": "ALTA",
+    "hours": {
+      "development": 17.2,
+      "qa": 10.1,
+      "buffer": 2.7,
+      "total": 30
+    },
+    "confidence": "media"
+  },
+  "analysis": {
+    "context": "Registro de cobranzas con detalle de operaciones por ramo y moneda, totales acumulados por ramo y total por moneda, más cabecera institucional y parametrización por NU_SECUENCIA.",
+    "technical_findings": {
+      "user_parameters": [
+        "NU_SECUENCIA"
+      ],
+      "queries": [
+        "COBRANZA",
+        "DATOS_COMPANIA",
+        "Q_2",
+        "Q_4"
+      ],
+      "groups": [
+        "DATOS_COMPANIA",
+        "G_2",
+        "RAMO",
+        "G_1",
+        "G_4"
+      ],
+      "data_links": [],
+      "formula_columns": [
+        "CD_RAMO",
+        "FECHA_DESDE",
+        "FECHA_HASTA"
+      ],
+      "summary_columns": [
+        "CREDITO_MONEDA",
+        "DEBITO_MONEDA",
+        "CREDITO_RAMO",
+        "DEBITO_RAMO"
+      ],
+      "report_triggers": [
+        "BEFORE REPORT"
+      ],
+      "program_units": [
+        "BEFOREREPORT",
+        "CAMBIO_FORMATO",
+        "CCREDITOFORMULA",
+        "CCREDITO_MONEDAFORMULA",
+        "CCREDITO_RAMOFORMULA",
+        "CDEBITOFORMULA",
+        "CDEBITO_MONEDAFORMULA",
+        "CDEBITO_RAMOFORMULA",
+        "CD_RAMOFORMULA",
+        "CREDITOFORMULA",
+        "CSALDOFORMULA",
+        "CSALDO_MONEDAFORMULA",
+        "CSALDO_RAMOFORMULA",
+        "DESC_RAMOFORMULA",
+        "DEVITOFORMULA",
+        "FECHA_DESDEFORMULA",
+        "FECHA_HASTAFORMULA",
+        "F_7FORMATTRIGGER",
+        "SALDOFORMULA",
+        "SALDO_MONEDAFORMULA",
+        "SALDO_RAMOFORMULA",
+        "TEXTO_CD_POSTALFORMULA",
+        "TEXTO_DIRECCIONFORMULA"
+      ],
+      "layout_complexity": "MEDIA",
+      "layout_notes": "Layout tabular compacto con cabecera institucional, bloque principal por ramo, detalle de cobranzas, subtotal por ramo y subtotal por moneda. Requiere replicar exactamente formato numérico y orden visual de columnas."
+    },
+    "qa_impact": "Alto. Hay riesgo en los acumulados por nivel, en el signo funcional de débito/crédito según operación 2006/2008, en la descripción de ramo, en el formato numérico textual y en la lógica de dirección/código postal dependiente de la fecha del proceso.",
+    "recommended_action": [
+      "Migrar la lógica de formato numérico a una utilidad común del motor destino",
+      "Resolver en backend o SQL la obtención de FECHA_DESDE, FECHA_HASTA y CD_RAMO para reducir dependencia de fórmulas Oracle",
+      "Validar subtotales por RAMO y por MONEDA contra salida original",
+      "Reemplazar auditoria_report por logging nativo del nuevo motor",
+      "Controlar específicamente el caso especial de ramo 50 y el union all de la query COBRANZA"
+    ],
+    "assumptions": [
+      "La salida final mantiene estructura tabular sin cambios funcionales",
+      "El formato monetario con coma decimal y punto de miles debe conservarse tal como Oracle Reports",
+      "La regla de domicilio/código postal cambia según CAOS_FE_A y debe mantenerse en migración",
+      "Las operaciones 2006 y 2008 representan respectivamente crédito y débito en este reporte"
+    ],
+    "executive_justification": "Aunque el layout es visualmente simple, la complejidad sube por la cantidad de fórmulas auxiliares, la doble agregación por ramo y moneda, el formateo numérico textual y las reglas condicionales de cabecera/dirección. Eso impacta fuerte en QA comparativo."
+  },
+  "migration_assets_detected": {
+    "has_queries": true,
+    "has_formulas": true,
+    "has_layout_model": true,
+    "has_program_units": true,
+    "has_triggers": true
+  },
+  "future_migration_notes": {
+    "keep_for_migration": true,
+    "priority": "high",
+    "notes": [
+      "Replicar union all especial para ramo 50",
+      "Preservar CAMBIO_FORMATO y su equivalencia exacta",
+      "Validar formulas de saldo porque hoy suman débito y crédito según lógica heredada",
+      "Mantener TEXTO_CD_POSTALFORMULA y TEXTO_DIRECCIONFORMULA con corte de fecha 01/04/2025"
+    ]
+  },
+  "traceability": {
+    "source_inputs": {
+      "images_received": 4,
+      "queries_received": 4,
+      "formula_code_received": 23,
+      "layout_received": 1
+    },
+    "generated_at": "2026-04-05T00:00:00Z",
+    "status": "quoted"
+  }
+}

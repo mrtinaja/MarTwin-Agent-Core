@@ -1,0 +1,103 @@
+{
+  "log_version": "1.0",
+  "agent": "ChatGPT",
+  "consumer": "MarTwin",
+  "operation_type": "report_quotation",
+  "project": {
+    "client": "Zurich",
+    "vendor": "Squad Alpha",
+    "phase": "Fase 2",
+    "source_technology": "Oracle Reports RDF",
+    "target_technology": "HTML/JS report engine"
+  },
+  "report": {
+    "name": "SINR44020",
+    "file_name": "SINR44020.rdf",
+    "module": "Siniestros/Cartas",
+    "category": "report"
+  },
+  "quotation": {
+    "complexity": "Media",
+    "hours": {
+      "development": 17,
+      "qa": 15,
+      "buffer": 3,
+      "total": 35
+    },
+    "confidence": "media"
+  },
+  "analysis": {
+    "context": "Reporte orientado a la impresión de una carta o documento generado a partir de un número de carta. Recupera datos de carta, firmante, asegurado, siniestro, póliza, vigencias, texto del documento y además incorpora CTCG_CD_SUCURSAL, con una fórmula adicional asociada a la descripción de sucursal. La salida es una pieza documental breve, con encabezado, cuerpo principal de texto y bloque de firma o cierre.",
+    "technical_findings": {
+      "user_parameters": [
+        "P_NU_CARTA"
+      ],
+      "queries": [
+        "Q_CARTA"
+      ],
+      "groups": [
+        "G_CTCG_NU_CARTA"
+      ],
+      "data_links": [],
+      "formula_columns": [
+        "CF_DE_SUCURSAL"
+      ],
+      "summary_columns": [],
+      "report_triggers": [
+        "BEFORE PARAMETER FORM",
+        "AFTER PARAMETER FORM",
+        "BEFORE REPORT",
+        "BETWEEN PAGES",
+        "AFTER REPORT"
+      ],
+      "program_units": [
+        "BEFOREREPORT",
+        "CF_DE_SUCURSALFORMULA"
+      ],
+      "layout_complexity": "medium_visual_low_functional",
+      "layout_notes": "Documento de composición fija y relativamente simple: campo superior de fecha, referencia breve, bloque central de texto grande y firma o cierre al pie. No se observan dobles bloques complejos como en otros reportes de cartas, pero sí sensibilidad visual propia de una salida documental."
+    },
+    "qa_impact": "El riesgo principal está en la fidelidad visual del documento final, la correcta inyección del texto principal, la posición y espaciado del bloque documental, la correcta resolución de la sucursal derivada por fórmula, y la consistencia entre número de carta, fecha, texto y firma o cierre.",
+    "recommended_action": [
+      "Migrar la query principal casi 1 a 1, manteniendo el filtro por número de carta.",
+      "Resolver la lógica de CF_DE_SUCURSAL de forma explícita y desacoplada del layout.",
+      "Modelar el documento por bloques: encabezado, referencia, cuerpo y cierre o firma.",
+      "Mantener la auditoría del BeforeReport fuera de la lógica de render del reporte migrado.",
+      "Ejecutar QA visual contra el original con foco en texto completo, posiciones, espaciados, firma y datos de sucursal."
+    ],
+    "assumptions": [
+      "La query compartida aparece recortada en el WHERE, pero el patrón general es análogo al de otros reportes de cartas del lote.",
+      "No se observan Summary Columns ni lógica de totales.",
+      "La principal complejidad está en el documento final y en la fórmula de sucursal, no en el SQL."
+    ],
+    "executive_justification": "SINR44020 tiene una base de datos simple, una sola query y una composición documental más liviana que otros reportes de cartas del mismo lote. Sin embargo, no debe clasificarse como baja porque conserva sensibilidad de layout, manejo de texto y una fórmula adicional de sucursal que agrega una pequeña capa de lógica funcional. La mayor carga está en reproducir fielmente el documento y validarlo visualmente."
+  },
+  "migration_assets_detected": {
+    "has_queries": true,
+    "has_formulas": true,
+    "has_layout_model": true,
+    "has_program_units": true,
+    "has_triggers": true
+  },
+  "future_migration_notes": {
+    "keep_for_migration": true,
+    "priority": "medium",
+    "notes": [
+      "La query principal puede mantenerse muy cercana al original durante la migración.",
+      "La fórmula CF_DE_SUCURSAL debe resolverse explícitamente en la capa de datos o transformación, no dejarse implícita.",
+      "Conviene modelar el documento como una plantilla fija con bloques bien definidos.",
+      "El bloque central de texto debe probarse con cuidado por diferencias de render entre Oracle Reports y HTML.",
+      "La auditoría del BeforeReport debe tratarse como lógica transversal y no bloquear la salida del documento."
+    ]
+  },
+  "traceability": {
+    "source_inputs": {
+      "images_received": 5,
+      "queries_received": 1,
+      "formula_code_received": 1,
+      "layout_received": 1
+    },
+    "generated_at": "2026-04-05",
+    "status": "quoted"
+  }
+}

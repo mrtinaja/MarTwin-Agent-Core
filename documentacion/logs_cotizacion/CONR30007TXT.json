@@ -1,0 +1,159 @@
+{
+  "log_version": "1.0",
+  "agent": "ChatGPT",
+  "consumer": "MarTwin",
+  "operation_type": "report_quotation",
+  "project": {
+    "client": "Zurich",
+    "vendor": "Squad Alpha",
+    "phase": "Fase 2",
+    "source_technology": "Oracle Reports RDF",
+    "target_technology": "HTML/JS report engine"
+  },
+  "report": {
+    "name": "CONR30007TXT",
+    "file_name": "CONR30007TXT.rdf",
+    "module": "Contabilidad/Movimientos",
+    "category": "report"
+  },
+  "quotation": {
+    "complexity": "Alta",
+    "hours": {
+      "development": 31,
+      "qa": 30,
+      "buffer": 6,
+      "total": 67
+    },
+    "confidence": "media_alta"
+  },
+  "analysis": {
+    "context": "Reporte contable en formato texto/listado, orientado a movimientos de cuenta filtrados por una combinación amplia de parámetros contables y auxiliares. Trabaja por rango de fechas (FE_A, FE_B), distingue por tipo de asiento (IN_TP_ASIENTO), agrupa por mes, día y movimientos, y calcula saldos, netos y totales parciales y generales.",
+    "technical_findings": {
+      "user_parameters": [
+        "AUX_1",
+        "AUX_2",
+        "CD_COMPANIA",
+        "CD_MONEDA",
+        "CUENTA",
+        "DIVISION",
+        "FE_A",
+        "FE_B",
+        "GRUPO",
+        "IN_TP_ASIENTO",
+        "SALDO_DIARIO",
+        "SUB_CUENTA_1",
+        "SUB_CUENTA_2",
+        "SUB_CUENTA_3",
+        "SUB_GRUPO"
+      ],
+      "queries": [
+        "Q_MOVIMIENTOS"
+      ],
+      "groups": [
+        "G_MES",
+        "G_DIA",
+        "G_MOVIMIENTOS"
+      ],
+      "data_links": [],
+      "formula_columns": [
+        "CD_CUENTA",
+        "NM_USUARIO",
+        "TOT_SIN_ACT",
+        "TOT_SIN_VERIF",
+        "UNIDAD_ADM",
+        "USUARIO",
+        "DEBE_SIN_ACT",
+        "DEBE_SIN_VERIF",
+        "DIA_MOV",
+        "HABER_SIN_ACT",
+        "HABER_SIN_VERIF",
+        "NETO_DIA",
+        "SALDO_MES_ANT",
+        "TOTAL_GENERAL",
+        "TOTAL_MES"
+      ],
+      "summary_columns": [
+        "MES_DEBE",
+        "MES_HABER",
+        "TOTAL_DIA",
+        "TOT_DEBE",
+        "TOT_DEBE_ACT",
+        "TOT_DEBE_VERIF",
+        "TOT_HABER",
+        "TOT_HABER_ACT",
+        "TOT_HABER_VERIF"
+      ],
+      "report_triggers": [
+        "BEFORE PARAMETER FORM",
+        "AFTER PARAMETER FORM",
+        "BEFORE REPORT",
+        "BETWEEN PAGES",
+        "AFTER REPORT"
+      ],
+      "program_units": [
+        "BEFOREREPORT",
+        "CD_CUENTAFORMULA",
+        "DEBE_SIN_ACTFORMULA",
+        "DEBE_SIN_VERIFFORMULA",
+        "DIA_MOVFORMULA",
+        "HABER_SIN_ACTFORMULA",
+        "HABER_SIN_VERIFFORMULA",
+        "NETO_DIAFORMULA",
+        "NM_USUARIOFORMULA",
+        "SALDO_MES_ANTFORMULA",
+        "TOTAL_GENERALFORMULA",
+        "TOTAL_MESFORMULA",
+        "TOT_SIN_ACTFORMULA",
+        "TOT_SIN_VERIFFORMULA",
+        "UNIDAD_ADMFORMULA",
+        "USUARIOFORMULA"
+      ],
+      "layout_complexity": "low_visual_high_functional",
+      "layout_notes": "Layout tipo listado ancho, lineal y tabular. No presenta una complejidad estética alta, pero sí sensibilidad por cantidad de columnas, orden exacto, cortes por grupo y posible necesidad de respetar formato TXT rígido."
+    },
+    "qa_impact": "Riesgo alto en el cierre de debe/haber por movimiento, día, mes y total general; correcta separación entre actualizados/no actualizados y verificados/no verificados; consistencia del saldo mes anterior; correcta reconstrucción del total del mes y total general; exactitud del agrupamiento por mes/día; y posibles diferencias entre Oracle Reports y el motor nuevo en fórmulas por grupo.",
+    "recommended_action": [
+      "Separar la migración en capas: query base de movimientos, derivaciones por fila, acumulados por día, acumulados por mes, saldo inicial mensual y total general.",
+      "Reimplementar SALDO_MES_ANT con extremo cuidado, porque es la lógica más riesgosa del reporte.",
+      "Llevar la lógica de clasificación DEBE/HABER SIN ACT, SIN VERIF y NETO_DIA fuera del layout hacia SQL o transformación controlada.",
+      "Validar explícitamente el comportamiento de IN_TP_ASIENTO = 'N' y 'S', porque cambia la fuente de saldos.",
+      "Ejecutar QA por fila individual, subtotal diario, subtotal mensual, saldo inicial y total general.",
+      "Confirmar si la salida final debe respetar formato TXT estricto o si alcanza equivalencia tabular funcional."
+    ],
+    "assumptions": [
+      "No se visualiza el output impreso completo final, pero las capturas sugieren un reporte muy ancho y lineal, probablemente sensible al formato.",
+      "La lógica de SALDO_DIARIO no aparece desarrollada en las fórmulas compartidas y podría existir dependencia adicional no visible.",
+      "La complejidad dominante está en la lógica contable y los acumulados, no en el diseño visual."
+    ],
+    "executive_justification": "CONR30007TXT concentra varios factores de alto riesgo: gran cantidad de parámetros, múltiples niveles de agrupación, muchas fórmulas funcionales, acumulados por distintos cortes temporales y una lógica crítica de saldo mes anterior que cambia de tabla según el tipo de asiento. No es un reporte visualmente complejo, pero sí funcionalmente delicado. La dificultad real está en reproducir exactamente los cálculos y cierres contables."
+  },
+  "migration_assets_detected": {
+    "has_queries": true,
+    "has_formulas": true,
+    "has_layout_model": true,
+    "has_program_units": true,
+    "has_triggers": true
+  },
+  "future_migration_notes": {
+    "keep_for_migration": true,
+    "priority": "high",
+    "notes": [
+      "Separar la lógica de saldos acumulados de la presentación para facilitar pruebas unitarias.",
+      "La fórmula SALDO_MES_ANT debe migrarse como módulo aislado y testeable, porque cambia de fuente según IN_TP_ASIENTO.",
+      "El armado de CD_CUENTA y DE_CUENTA conviene resolverlo en una capa previa o enriquecimiento de datos.",
+      "La clasificación por IN_ACT_VERIF debe preservarse exactamente para no romper los totales parciales.",
+      "El orden por fecha de movimiento y número de asiento debe mantenerse sin alteraciones.",
+      "Revisar si la salida debe conservar alineación estricta tipo TXT, además de la equivalencia funcional."
+    ]
+  },
+  "traceability": {
+    "source_inputs": {
+      "images_received": 9,
+      "queries_received": 1,
+      "formula_code_received": 16,
+      "layout_received": 5
+    },
+    "generated_at": "2026-04-05",
+    "status": "quoted"
+  }
+}

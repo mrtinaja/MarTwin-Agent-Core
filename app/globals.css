@@ -1,0 +1,56 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #000000;      /* Fondo Negro Puro */
+  --foreground: #f0e68c;      /* Amarillo suave (Arena) */
+  --accent-turquesa: #08646E; /* Tu Turquesa Zurich */
+  --border-dim: rgba(8, 100, 110, 0.2);
+}
+
+body {
+  color: var(--foreground);
+  background-color: var(--background);
+  font-family: 'Inter', system-ui, sans-serif;
+  font-weight: 200;
+  letter-spacing: 0.05em;
+  -webkit-font-smoothing: antialiased; /* Para que la letra sea ultra fina */
+}
+
+@layer base {
+  /* Forzamos a que todos los bordes por defecto sean turquesas tenues */
+  border {
+    border-color: var(--border-dim);
+  }
+  
+  /* Los títulos y textos importantes en Amarillo Arena */
+  h1, h2, h3, h4 {
+    color: var(--foreground);
+    font-weight: 200;
+  }
+}
+
+@layer components {
+  /* Clase personalizada para tus bordes amarillos si los necesitás */
+  .border-arena {
+    border-color: rgba(240, 230, 140, 0.2);
+  }
+
+  /* Clase para el resplandor turquesa en hover */
+  .glow-turquesa {
+    box-shadow: 0 0 20px rgba(8, 100, 110, 0.3);
+  }
+}
+
+/* Scrollbar minimalista Turquesa */
+::-webkit-scrollbar {
+  width: 4px;
+}
+::-webkit-scrollbar-track {
+  background: #000;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--accent-turquesa);
+  border-radius: 10px;
+}

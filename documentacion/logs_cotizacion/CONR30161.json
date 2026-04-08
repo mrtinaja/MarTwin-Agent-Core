@@ -1,0 +1,103 @@
+{
+  "log_version": "1.0",
+  "agent": "ChatGPT",
+  "consumer": "MarTwin",
+  "operation_type": "report_quotation",
+  "project": {
+    "client": "Zurich",
+    "vendor": "Squad Alpha",
+    "phase": "Fase 2",
+    "source_technology": "Oracle Reports RDF",
+    "target_technology": "HTML/JS report engine"
+  },
+  "report": {
+    "name": "CONR30161",
+    "file_name": "CONR30161.rdf",
+    "module": "Contabilidad / Libro Diario",
+    "category": "report"
+  },
+  "quotation": {
+    "complexity": "MEDIA",
+    "hours": {
+      "development": 15.8,
+      "qa": 8.4,
+      "buffer": 2.4,
+      "total": 26.6
+    },
+    "confidence": "media"
+  },
+  "analysis": {
+    "context": "Libro diario contable con cabecera institucional separada en query propia y detalle de asientos/movimientos asociado a una secuencia de proceso.",
+    "technical_findings": {
+      "user_parameters": [
+        "NU_SEC"
+      ],
+      "queries": [
+        "DATOS_COMPANIA",
+        "Q_ASIENTOS"
+      ],
+      "groups": [
+        "DATOS_COMPANIA",
+        "G_ENCABEZADO",
+        "G_ASIENTOS",
+        "G_MOV_ASIENTOS"
+      ],
+      "data_links": [],
+      "formula_columns": [],
+      "summary_columns": [
+        "TOT_DEBE",
+        "TOT_HABER"
+      ],
+      "report_triggers": [
+        "BEFORE REPORT"
+      ],
+      "program_units": [
+        "BeforeReport",
+        "B_CAGR_NM_UNIDAD_ADMFormatTrig",
+        "F_paginaFormatTrigger",
+        "M_mov_asientos_GRPFRFormatTrig"
+      ],
+      "layout_complexity": "MEDIA",
+      "layout_notes": "Layout tabular de libro diario con cabecera corporativa separada, paginación acumulada, bloque de encabezado por asiento y detalle de movimientos por línea."
+    },
+    "qa_impact": "Debe validarse la correcta sincronización entre la query DATOS_COMPANIA y la cabecera del reporte, la paginación acumulada mediante PAG, y la omisión visual de asientos anulados en el detalle.",
+    "recommended_action": [
+      "Separar claramente en migración la cabecera corporativa del detalle operativo",
+      "Replicar la lógica de ocultamiento de asientos anulados en capa de render o preprocesamiento",
+      "Reemplazar auditoria_report por logging nativo del motor destino",
+      "Validar que la numeración de página respete el offset de PAG"
+    ],
+    "assumptions": [
+      "La query DATOS_COMPANIA devuelve una única fila válida para la cabecera",
+      "La lógica de paginación offset basada en PAG debe conservarse en la migración",
+      "Los asientos anulados deben seguir ocultándose del bloque de movimientos"
+    ],
+    "executive_justification": "La complejidad no está en la cantidad de queries sino en la coordinación entre cabecera fija, encabezado por asiento, paginación desplazada y reglas visuales de exclusión de registros anulados."
+  },
+  "migration_assets_detected": {
+    "has_queries": true,
+    "has_formulas": false,
+    "has_layout_model": true,
+    "has_program_units": true,
+    "has_triggers": true
+  },
+  "future_migration_notes": {
+    "keep_for_migration": true,
+    "priority": "medium",
+    "notes": [
+      "Preservar F_paginaFormatTrigger",
+      "Replicar M_mov_asientos_GRPFRFormatTrig",
+      "Mantener separación entre DATOS_COMPANIA y Q_ASIENTOS"
+    ]
+  },
+  "traceability": {
+    "source_inputs": {
+      "images_received": 5,
+      "queries_received": 2,
+      "formula_code_received": 4,
+      "layout_received": 1
+    },
+    "generated_at": "2026-04-05T00:00:00Z",
+    "status": "quoted"
+  }
+}

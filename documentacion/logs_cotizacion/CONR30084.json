@@ -1,0 +1,144 @@
+{
+  "log_version": "1.0",
+  "agent": "ChatGPT",
+  "consumer": "MarTwin",
+  "operation_type": "report_quotation",
+  "project": {
+    "client": "Zurich",
+    "vendor": "Squad Alpha",
+    "phase": "Fase 2",
+    "source_technology": "Oracle Reports RDF",
+    "target_technology": "HTML/JS report engine"
+  },
+  "report": {
+    "name": "CONR30084",
+    "file_name": "CONR30084.rdf",
+    "module": "Contabilidad/Balance",
+    "category": "report"
+  },
+  "quotation": {
+    "complexity": "Alta",
+    "hours": {
+      "development": 26,
+      "qa": 24,
+      "buffer": 5,
+      "total": 55
+    },
+    "confidence": "media_alta"
+  },
+  "task_management": {
+    "priority": "high",
+    "severity": "high",
+    "execution_order": "early",
+    "reason": "High accounting complexity due to hierarchical grouping, optional auxiliary opening, balance calculations, auxiliary-description resolution across multiple tables, and high QA risk on totals and hierarchy."
+  },
+  "analysis": {
+    "context": "Reporte de balance contable por fecha de balance, compañía y moneda, con posibilidad de apertura por auxiliar. Agrupa jerárquicamente por división, grupo, subgrupo, cuenta y luego por balance/cuentas auxiliares. Presenta saldo anterior, debe, haber, neto y saldo actual, con totales generales del período.",
+    "technical_findings": {
+      "user_parameters": [
+        "APERTURA_X_AUXILIAR",
+        "CD_COMPANIA",
+        "CD_MONEDA",
+        "FECHA_BALANCE"
+      ],
+      "queries": [
+        "Q_BALANCE"
+      ],
+      "groups": [
+        "G_DIVISION",
+        "G_GRUPO",
+        "G_SUBGRUPO",
+        "G_CUENTA",
+        "G_BALANCE",
+        "G_CUENTAS"
+      ],
+      "data_links": [],
+      "formula_columns": [
+        "ANO_CONTABLE",
+        "MES",
+        "NM_COMPANIA",
+        "NM_USUARIO",
+        "TITULO",
+        "UNIDAD_ADM",
+        "USUARIO",
+        "CD_CUENTA",
+        "DEBE_TITULO",
+        "HABER_TITULO",
+        "MT_DEBE",
+        "MT_DEBE_DETALLE",
+        "MT_HABER",
+        "MT_HABER_DETALLE",
+        "MT_NETO",
+        "MT_NETO_DETALLE",
+        "NETO_TITULO",
+        "SALDO_ACTUAL",
+        "SALDO_ANTERIOR"
+      ],
+      "summary_columns": [
+        "TOT_DEBE",
+        "TOT_HABER",
+        "TOT_NETO"
+      ],
+      "report_triggers": [
+        "BEFORE PARAMETER FORM",
+        "AFTER PARAMETER FORM",
+        "BEFORE REPORT",
+        "BETWEEN PAGES",
+        "AFTER REPORT"
+      ],
+      "program_units": [
+        "BEFOREREPORT",
+        "CD_CUENTAFORMULA",
+        "DE_AUXILIARFORMULA",
+        "NM_USUARIOFORMULA",
+        "TOT_SIN_ACTFORMULA",
+        "UNIDAD_ADMFORMULA",
+        "USUARIOFORMULA"
+      ],
+      "layout_complexity": "low_visual_high_functional",
+      "layout_notes": "Layout tabular compacto con encabezado de cuenta y columnas de saldo anterior, debe, haber, neto y saldo actual, más pie de totales. No es complejo visualmente, pero depende fuertemente de agrupación jerárquica y coherencia exacta de importes."
+    },
+    "qa_impact": "Riesgo alto en la apertura correcta por auxiliar, consistencia del saldo anterior y saldo actual, cálculo de neto, respeto de jerarquías contables, exactitud de totales, resolución correcta de nombres de auxiliares y validación de cortes por división, grupo, subgrupo y cuenta.",
+    "recommended_action": [
+      "Separar la migración en dos capas: dataset base de saldos y enriquecimiento por cuenta/auxiliares.",
+      "Tratar APERTURA_X_AUXILIAR como decisión estructural del reporte y no como un simple detalle visual.",
+      "Llevar la lógica de DE_AUXILIARFORMULA a una capa controlada y reutilizable.",
+      "Revalidar de forma aislada el cálculo de saldo anterior, debe, haber, neto y saldo actual.",
+      "Ejecutar QA comparando modo sin apertura por auxiliar versus modo con apertura por auxiliar, además de totales y subtotales por jerarquía."
+    ],
+    "assumptions": [
+      "No se visualiza el set completo de Program Units en las capturas, pero hay evidencia suficiente de lógica funcional importante.",
+      "El layout no parece complejo por diseño visual, pero sí por comportamiento jerárquico y apertura opcional.",
+      "La query compartida representa la base del balance anual y no necesariamente todo el enriquecimiento final del reporte."
+    ],
+    "executive_justification": "CONR30084 no es un reporte difícil por maquetación, sino por su comportamiento contable y jerárquico. La apertura opcional por auxiliar, la resolución de descripciones desde múltiples tablas y la necesidad de validar saldo anterior, neto y saldo actual vuelven el QA bastante delicado. La complejidad real está en garantizar que el balance cierre exactamente igual en todos los niveles de agrupación."
+  },
+  "migration_assets_detected": {
+    "has_queries": true,
+    "has_formulas": true,
+    "has_layout_model": true,
+    "has_program_units": true,
+    "has_triggers": true
+  },
+  "future_migration_notes": {
+    "keep_for_migration": true,
+    "priority": "high",
+    "notes": [
+      "APERTURA_X_AUXILIAR altera la granularidad del resultado y debe modelarse explícitamente.",
+      "La lógica de DE_AUXILIARFORMULA debe desacoplarse del reporte y centralizarse.",
+      "Conviene testear por separado el modo resumido y el modo con apertura por auxiliar.",
+      "Los cálculos de saldo anterior, neto y saldo actual deben validarse con datasets de control.",
+      "La jerarquía división/grupo/subgrupo/cuenta debe conservarse exactamente en el render final."
+    ]
+  },
+  "traceability": {
+    "source_inputs": {
+      "images_received": 6,
+      "queries_received": 2,
+      "formula_code_received": 7,
+      "layout_received": 3
+    },
+    "generated_at": "2026-04-05",
+    "status": "quoted"
+  }
+}

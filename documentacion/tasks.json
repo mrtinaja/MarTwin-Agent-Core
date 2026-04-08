@@ -1,0 +1,2006 @@
+[
+  {
+    "id": "trm_1775427704413_0",
+    "title": "CAJR30450",
+    "category": "MIGRACION",
+    "priority": "CRITICA",
+    "completed": false,
+    "metadata": {
+      "log_version": "1.0",
+      "agent": "ChatGPT",
+      "consumer": "MarTwin",
+      "operation_type": "report_quotation",
+      "project": {
+        "client": "Zurich",
+        "vendor": "Squad Alpha",
+        "phase": "Fase 2",
+        "source_technology": "Oracle Reports RDF",
+        "target_technology": "HTML/JS report engine"
+      },
+      "report": {
+        "name": "CAJR30450",
+        "file_name": "CAJR30450.rdf",
+        "module": "Caja/Egresos",
+        "category": "report"
+      },
+      "quotation": {
+        "complexity": "Alta",
+        "hours": {
+          "development": 24,
+          "qa": 28,
+          "buffer": 5,
+          "total": 57
+        },
+        "confidence": "media_alta"
+      },
+      "analysis": {
+        "context": "Reporte de listado de órdenes de pago emitidas, filtrado por NU_SECUENCIA, con derivación de rango de fechas y clasificación de egresos según tipo. Muestra detalle de egresos, beneficiario, motivo, cheque, importe, estado de egreso, siniestro y estado del siniestro, e incluye acumulados monetarios por estado operativo del egreso.",
+        "technical_findings": {
+          "user_parameters": [
+            "NU_SECUENCIA"
+          ],
+          "queries": [
+            "Q_EGRESOS",
+            "Q_SIN"
+          ],
+          "groups": [
+            "G_EGRESOS",
+            "G_SIN"
+          ],
+          "data_links": [
+            {
+              "from": "G_EGRESOS.EGRESO",
+              "to": "Q_SIN.NU_EGRESO"
+            }
+          ],
+          "formula_columns": [
+            "EGR_PROVEED",
+            "EGR_SINIESTROS",
+            "FECHA_DESDE",
+            "FECHA_HASTA",
+            "ANULADOS",
+            "APROBADOS",
+            "AUTORIZADOS",
+            "CONFORMADOS",
+            "ELABORADOS",
+            "ENTREGADOS",
+            "VIGENTES"
+          ],
+          "summary_columns": [
+            "CS_ANUL",
+            "CS_APROB",
+            "CS_AUTORIZ",
+            "CS_CONFORM",
+            "CS_ELABOR",
+            "CS_EMITIDOS",
+            "CS_ENTREG"
+          ],
+          "report_triggers": [
+            "BEFORE PARAMETER FORM",
+            "AFTER PARAMETER FORM",
+            "BEFORE REPORT",
+            "BETWEEN PAGES",
+            "AFTER REPORT"
+          ],
+          "program_units": [
+            "ANULADOSFORMULA",
+            "APROBADOSFORMULA",
+            "AUTORIZADOSFORMULA",
+            "BEFOREREPORT",
+            "CONFORMADOSFORMULA",
+            "EGR_PROVEEDFORMULA",
+            "EGR_SINIESTROSFORMULA",
+            "ELABORADOSFORMULA",
+            "ENTREGADOSFORMULA",
+            "FECHA_DESDEFORMULA",
+            "FECHA_HASTAFORMULA",
+            "VIGENTESFORMULA"
+          ],
+          "layout_complexity": "low_visual_high_functional",
+          "layout_notes": "Layout tabular simple con cabecera de período, detalle de egresos y siniestros asociados, y bloque final de acumulados por estado. La complejidad principal no está en la maquetación visual sino en la lógica funcional y en la validación de totales."
+        },
+        "qa_impact": "Riesgo alto de descuadre en totales por estado, diferencias en la resolución de fórmulas respecto de Oracle Reports, problemas de cardinalidad entre egresos y siniestros asociados, y posibles inconsistencias en filtros derivados por fórmulas de contexto.",
+        "recommended_action": [
+          "Separar el contexto de ejecución por NU_SECUENCIA en una capa previa que resuelva fecha_desde, fecha_hasta, EGR_PROVEED y EGR_SINIESTROS.",
+          "Reescribir Q_EGRESOS con joins ANSI y lógica de filtros explícita.",
+          "Validar el enlace con Q_SIN para evitar duplicación o cambio de cardinalidad respecto del reporte original.",
+          "Migrar los acumulados por estado fuera del layout, de forma controlada y testeable.",
+          "Ejecutar QA por detalle, subtotales y total general contra Oracle original."
+        ],
+        "assumptions": [
+          "No se detectaron Format Triggers específicos en las capturas provistas.",
+          "La principal complejidad del reporte se concentra en la lógica funcional y en la validación numérica, no en la replicación visual.",
+          "Las fórmulas de clasificación por estado son parte central del comportamiento del reporte."
+        ],
+        "executive_justification": "El reporte no presenta una complejidad visual elevada, pero depende de múltiples fórmulas de negocio que afectan el filtrado de datos y la acumulación de importes por estado. La criticidad está en garantizar equivalencia funcional y cierre exacto de totales respecto del original. Por eso la carga principal se concentra en QA y en el control fino de la lógica migrada."
+      },
+      "migration_assets_detected": {
+        "has_queries": true,
+        "has_formulas": true,
+        "has_layout_model": true,
+        "has_program_units": true,
+        "has_triggers": true
+      },
+      "future_migration_notes": {
+        "keep_for_migration": true,
+        "priority": "high",
+        "notes": [
+          "Resolver contexto por NU_SECUENCIA con una query previa unificada sobre CART_ORDENES_PROCESOS.",
+          "Unificar la obtención de FECHA_DESDE, FECHA_HASTA y nacionalidad para derivar EGR_PROVEED y EGR_SINIESTROS sin repetir consultas.",
+          "Convertir el outer join antiguo de CAJT_CHEQUES a LEFT JOIN ANSI cuidando no alterar la cardinalidad.",
+          "Revisar si Q_SIN devuelve múltiples siniestros por egreso y validar cómo debe renderizarse contra el original.",
+          "Desacoplar la lógica de auditoría del BeforeReport para que no bloquee la ejecución del reporte migrado."
+        ]
+      },
+      "traceability": {
+        "source_inputs": {
+          "images_received": 6,
+          "queries_received": 2,
+          "formula_code_received": 12,
+          "layout_received": 1
+        },
+        "generated_at": "2026-04-05",
+        "status": "quoted"
+      }
+    }
+  },
+  {
+    "id": "trm_1775427704426_1",
+    "title": "CONR30007TXT",
+    "category": "MIGRACION",
+    "priority": "CRITICA",
+    "completed": false,
+    "metadata": {
+      "log_version": "1.0",
+      "agent": "ChatGPT",
+      "consumer": "MarTwin",
+      "operation_type": "report_quotation",
+      "project": {
+        "client": "Zurich",
+        "vendor": "Squad Alpha",
+        "phase": "Fase 2",
+        "source_technology": "Oracle Reports RDF",
+        "target_technology": "HTML/JS report engine"
+      },
+      "report": {
+        "name": "CONR30007TXT",
+        "file_name": "CONR30007TXT.rdf",
+        "module": "Contabilidad/Movimientos",
+        "category": "report"
+      },
+      "quotation": {
+        "complexity": "Alta",
+        "hours": {
+          "development": 31,
+          "qa": 30,
+          "buffer": 6,
+          "total": 67
+        },
+        "confidence": "media_alta"
+      },
+      "analysis": {
+        "context": "Reporte contable en formato texto/listado, orientado a movimientos de cuenta filtrados por una combinación amplia de parámetros contables y auxiliares. Trabaja por rango de fechas (FE_A, FE_B), distingue por tipo de asiento (IN_TP_ASIENTO), agrupa por mes, día y movimientos, y calcula saldos, netos y totales parciales y generales.",
+        "technical_findings": {
+          "user_parameters": [
+            "AUX_1",
+            "AUX_2",
+            "CD_COMPANIA",
+            "CD_MONEDA",
+            "CUENTA",
+            "DIVISION",
+            "FE_A",
+            "FE_B",
+            "GRUPO",
+            "IN_TP_ASIENTO",
+            "SALDO_DIARIO",
+            "SUB_CUENTA_1",
+            "SUB_CUENTA_2",
+            "SUB_CUENTA_3",
+            "SUB_GRUPO"
+          ],
+          "queries": [
+            "Q_MOVIMIENTOS"
+          ],
+          "groups": [
+            "G_MES",
+            "G_DIA",
+            "G_MOVIMIENTOS"
+          ],
+          "data_links": [],
+          "formula_columns": [
+            "CD_CUENTA",
+            "NM_USUARIO",
+            "TOT_SIN_ACT",
+            "TOT_SIN_VERIF",
+            "UNIDAD_ADM",
+            "USUARIO",
+            "DEBE_SIN_ACT",
+            "DEBE_SIN_VERIF",
+            "DIA_MOV",
+            "HABER_SIN_ACT",
+            "HABER_SIN_VERIF",
+            "NETO_DIA",
+            "SALDO_MES_ANT",
+            "TOTAL_GENERAL",
+            "TOTAL_MES"
+          ],
+          "summary_columns": [
+            "MES_DEBE",
+            "MES_HABER",
+            "TOTAL_DIA",
+            "TOT_DEBE",
+            "TOT_DEBE_ACT",
+            "TOT_DEBE_VERIF",
+            "TOT_HABER",
+            "TOT_HABER_ACT",
+            "TOT_HABER_VERIF"
+          ],
+          "report_triggers": [
+            "BEFORE PARAMETER FORM",
+            "AFTER PARAMETER FORM",
+            "BEFORE REPORT",
+            "BETWEEN PAGES",
+            "AFTER REPORT"
+          ],
+          "program_units": [
+            "BEFOREREPORT",
+            "CD_CUENTAFORMULA",
+            "DEBE_SIN_ACTFORMULA",
+            "DEBE_SIN_VERIFFORMULA",
+            "DIA_MOVFORMULA",
+            "HABER_SIN_ACTFORMULA",
+            "HABER_SIN_VERIFFORMULA",
+            "NETO_DIAFORMULA",
+            "NM_USUARIOFORMULA",
+            "SALDO_MES_ANTFORMULA",
+            "TOTAL_GENERALFORMULA",
+            "TOTAL_MESFORMULA",
+            "TOT_SIN_ACTFORMULA",
+            "TOT_SIN_VERIFFORMULA",
+            "UNIDAD_ADMFORMULA",
+            "USUARIOFORMULA"
+          ],
+          "layout_complexity": "low_visual_high_functional",
+          "layout_notes": "Layout tipo listado ancho, lineal y tabular. No presenta una complejidad estética alta, pero sí sensibilidad por cantidad de columnas, orden exacto, cortes por grupo y posible necesidad de respetar formato TXT rígido."
+        },
+        "qa_impact": "Riesgo alto en el cierre de debe/haber por movimiento, día, mes y total general; correcta separación entre actualizados/no actualizados y verificados/no verificados; consistencia del saldo mes anterior; correcta reconstrucción del total del mes y total general; exactitud del agrupamiento por mes/día; y posibles diferencias entre Oracle Reports y el motor nuevo en fórmulas por grupo.",
+        "recommended_action": [
+          "Separar la migración en capas: query base de movimientos, derivaciones por fila, acumulados por día, acumulados por mes, saldo inicial mensual y total general.",
+          "Reimplementar SALDO_MES_ANT con extremo cuidado, porque es la lógica más riesgosa del reporte.",
+          "Llevar la lógica de clasificación DEBE/HABER SIN ACT, SIN VERIF y NETO_DIA fuera del layout hacia SQL o transformación controlada.",
+          "Validar explícitamente el comportamiento de IN_TP_ASIENTO = 'N' y 'S', porque cambia la fuente de saldos.",
+          "Ejecutar QA por fila individual, subtotal diario, subtotal mensual, saldo inicial y total general.",
+          "Confirmar si la salida final debe respetar formato TXT estricto o si alcanza equivalencia tabular funcional."
+        ],
+        "assumptions": [
+          "No se visualiza el output impreso completo final, pero las capturas sugieren un reporte muy ancho y lineal, probablemente sensible al formato.",
+          "La lógica de SALDO_DIARIO no aparece desarrollada en las fórmulas compartidas y podría existir dependencia adicional no visible.",
+          "La complejidad dominante está en la lógica contable y los acumulados, no en el diseño visual."
+        ],
+        "executive_justification": "CONR30007TXT concentra varios factores de alto riesgo: gran cantidad de parámetros, múltiples niveles de agrupación, muchas fórmulas funcionales, acumulados por distintos cortes temporales y una lógica crítica de saldo mes anterior que cambia de tabla según el tipo de asiento. No es un reporte visualmente complejo, pero sí funcionalmente delicado. La dificultad real está en reproducir exactamente los cálculos y cierres contables."
+      },
+      "migration_assets_detected": {
+        "has_queries": true,
+        "has_formulas": true,
+        "has_layout_model": true,
+        "has_program_units": true,
+        "has_triggers": true
+      },
+      "future_migration_notes": {
+        "keep_for_migration": true,
+        "priority": "high",
+        "notes": [
+          "Separar la lógica de saldos acumulados de la presentación para facilitar pruebas unitarias.",
+          "La fórmula SALDO_MES_ANT debe migrarse como módulo aislado y testeable, porque cambia de fuente según IN_TP_ASIENTO.",
+          "El armado de CD_CUENTA y DE_CUENTA conviene resolverlo en una capa previa o enriquecimiento de datos.",
+          "La clasificación por IN_ACT_VERIF debe preservarse exactamente para no romper los totales parciales.",
+          "El orden por fecha de movimiento y número de asiento debe mantenerse sin alteraciones.",
+          "Revisar si la salida debe conservar alineación estricta tipo TXT, además de la equivalencia funcional."
+        ]
+      },
+      "traceability": {
+        "source_inputs": {
+          "images_received": 9,
+          "queries_received": 1,
+          "formula_code_received": 16,
+          "layout_received": 5
+        },
+        "generated_at": "2026-04-05",
+        "status": "quoted"
+      }
+    }
+  },
+  {
+    "id": "trm_1775427704436_2",
+    "title": "CONR30019TXT",
+    "category": "MIGRACION",
+    "priority": "ALTA",
+    "completed": false,
+    "metadata": {
+      "log_version": "1.1",
+      "agent": "Gemini",
+      "consumer": "MarTwin",
+      "operation_type": "report_quotation",
+      "project": {
+        "client": "Zurich",
+        "vendor": "Squad Alpha",
+        "phase": "Fase 2",
+        "source_technology": "Oracle Reports RDF",
+        "target_technology": "HTML/JS report engine"
+      },
+      "report": {
+        "name": "CONR30019TXT",
+        "file_name": "CONR30019TXT.rdf",
+        "module": "Contabilidad / Mayores Detallados",
+        "category": "report"
+      },
+      "quotation": {
+        "complexity": "CRITICA",
+        "hours": {
+          "development": 26,
+          "qa": 18.5,
+          "buffer": 5.5,
+          "total": 50
+        },
+        "confidence": "media_alta"
+      },
+      "analysis": {
+        "context": "Reporte de movimientos contables con cálculo de saldo anterior dinámico y resolución de auxiliares multi-entidad.",
+        "technical_findings": {
+          "user_parameters": [
+            "CD_COMPANIA",
+            "CD_MONEDA",
+            "DIVISION",
+            "GRUPO",
+            "SUB_GRUPO",
+            "CUENTA",
+            "FE_A",
+            "FE_B"
+          ],
+          "queries": [
+            "Q_MOVIMIENTOS"
+          ],
+          "groups": [
+            "G_MES",
+            "G_DIA"
+          ],
+          "formula_columns": [
+            "cd_cuenta",
+            "de_auxiliar",
+            "saldo_mes_ant",
+            "debe_sin_act",
+            "haber_sin_act",
+            "debe_sin_verif",
+            "haber_sin_verif",
+            "neto_dia",
+            "total_mes",
+            "total_general",
+            "tot_sin_act",
+            "tot_sin_verif",
+            "nm_usuario",
+            "unidad_adm",
+            "usuario"
+          ],
+          "summary_columns": [
+            "MES_DEBE",
+            "MES_HABER",
+            "TOTAL_GENERAL",
+            "TOT_DEBE_ACT",
+            "TOT_HABER_ACT"
+          ],
+          "report_triggers": [
+            "BEFORE REPORT"
+          ],
+          "program_units": [
+            "saldo_mes_antFormula",
+            "de_auxiliarFormula",
+            "cd_cuentaFormula"
+          ],
+          "layout_complexity": "ALTA",
+          "layout_notes": "Control de saldos por página y acumulados por ruptura de fecha."
+        },
+        "qa_impact": "Extremo riesgo en la fórmula de saldo anterior; requiere testing de regresión de 12 meses para validar la suma acumulada.",
+        "recommended_action": [
+          "Refactorizar saldo_mes_antFormula en una función SQL unificada para mejorar performance",
+          "Crear un mock de datos para los 6 tipos de auxiliares posibles",
+          "Implementar validación de auditoría para concordancia con gbll10001"
+        ],
+        "assumptions": [
+          "El acceso a CONT_SALDOS_CONTABLES_ANUALES tiene índices por cuenta y año",
+          "La lógica de saldos acumulados es la única fuente de verdad para el balance del reporte"
+        ],
+        "executive_justification": "La inclusión de la lógica de saldos anteriores y la resolución de auxiliares eleva el tiempo de desarrollo y QA sustancialmente. Es un reporte 'Core' que no admite errores de redondeo o lógica contable."
+      },
+      "migration_assets_detected": {
+        "has_queries": true,
+        "has_formulas": true,
+        "has_layout_model": true,
+        "has_program_units": true,
+        "has_triggers": true
+      },
+      "traceability": {
+        "source_inputs": {
+          "images_received": 6,
+          "queries_received": 1,
+          "formula_code_received": 16,
+          "layout_received": 1
+        },
+        "generated_at": "2026-04-05T15:10:00Z",
+        "status": "quoted"
+      }
+    }
+  },
+  {
+    "id": "trm_1775427704444_3",
+    "title": "CONR30084",
+    "category": "MIGRACION",
+    "priority": "CRITICA",
+    "completed": false,
+    "metadata": {
+      "log_version": "1.0",
+      "agent": "ChatGPT",
+      "consumer": "MarTwin",
+      "operation_type": "report_quotation",
+      "project": {
+        "client": "Zurich",
+        "vendor": "Squad Alpha",
+        "phase": "Fase 2",
+        "source_technology": "Oracle Reports RDF",
+        "target_technology": "HTML/JS report engine"
+      },
+      "report": {
+        "name": "CONR30084",
+        "file_name": "CONR30084.rdf",
+        "module": "Contabilidad/Balance",
+        "category": "report"
+      },
+      "quotation": {
+        "complexity": "Alta",
+        "hours": {
+          "development": 26,
+          "qa": 24,
+          "buffer": 5,
+          "total": 55
+        },
+        "confidence": "media_alta"
+      },
+      "task_management": {
+        "priority": "high",
+        "severity": "high",
+        "execution_order": "early",
+        "reason": "High accounting complexity due to hierarchical grouping, optional auxiliary opening, balance calculations, auxiliary-description resolution across multiple tables, and high QA risk on totals and hierarchy."
+      },
+      "analysis": {
+        "context": "Reporte de balance contable por fecha de balance, compañía y moneda, con posibilidad de apertura por auxiliar. Agrupa jerárquicamente por división, grupo, subgrupo, cuenta y luego por balance/cuentas auxiliares. Presenta saldo anterior, debe, haber, neto y saldo actual, con totales generales del período.",
+        "technical_findings": {
+          "user_parameters": [
+            "APERTURA_X_AUXILIAR",
+            "CD_COMPANIA",
+            "CD_MONEDA",
+            "FECHA_BALANCE"
+          ],
+          "queries": [
+            "Q_BALANCE"
+          ],
+          "groups": [
+            "G_DIVISION",
+            "G_GRUPO",
+            "G_SUBGRUPO",
+            "G_CUENTA",
+            "G_BALANCE",
+            "G_CUENTAS"
+          ],
+          "data_links": [],
+          "formula_columns": [
+            "ANO_CONTABLE",
+            "MES",
+            "NM_COMPANIA",
+            "NM_USUARIO",
+            "TITULO",
+            "UNIDAD_ADM",
+            "USUARIO",
+            "CD_CUENTA",
+            "DEBE_TITULO",
+            "HABER_TITULO",
+            "MT_DEBE",
+            "MT_DEBE_DETALLE",
+            "MT_HABER",
+            "MT_HABER_DETALLE",
+            "MT_NETO",
+            "MT_NETO_DETALLE",
+            "NETO_TITULO",
+            "SALDO_ACTUAL",
+            "SALDO_ANTERIOR"
+          ],
+          "summary_columns": [
+            "TOT_DEBE",
+            "TOT_HABER",
+            "TOT_NETO"
+          ],
+          "report_triggers": [
+            "BEFORE PARAMETER FORM",
+            "AFTER PARAMETER FORM",
+            "BEFORE REPORT",
+            "BETWEEN PAGES",
+            "AFTER REPORT"
+          ],
+          "program_units": [
+            "BEFOREREPORT",
+            "CD_CUENTAFORMULA",
+            "DE_AUXILIARFORMULA",
+            "NM_USUARIOFORMULA",
+            "TOT_SIN_ACTFORMULA",
+            "UNIDAD_ADMFORMULA",
+            "USUARIOFORMULA"
+          ],
+          "layout_complexity": "low_visual_high_functional",
+          "layout_notes": "Layout tabular compacto con encabezado de cuenta y columnas de saldo anterior, debe, haber, neto y saldo actual, más pie de totales. No es complejo visualmente, pero depende fuertemente de agrupación jerárquica y coherencia exacta de importes."
+        },
+        "qa_impact": "Riesgo alto en la apertura correcta por auxiliar, consistencia del saldo anterior y saldo actual, cálculo de neto, respeto de jerarquías contables, exactitud de totales, resolución correcta de nombres de auxiliares y validación de cortes por división, grupo, subgrupo y cuenta.",
+        "recommended_action": [
+          "Separar la migración en dos capas: dataset base de saldos y enriquecimiento por cuenta/auxiliares.",
+          "Tratar APERTURA_X_AUXILIAR como decisión estructural del reporte y no como un simple detalle visual.",
+          "Llevar la lógica de DE_AUXILIARFORMULA a una capa controlada y reutilizable.",
+          "Revalidar de forma aislada el cálculo de saldo anterior, debe, haber, neto y saldo actual.",
+          "Ejecutar QA comparando modo sin apertura por auxiliar versus modo con apertura por auxiliar, además de totales y subtotales por jerarquía."
+        ],
+        "assumptions": [
+          "No se visualiza el set completo de Program Units en las capturas, pero hay evidencia suficiente de lógica funcional importante.",
+          "El layout no parece complejo por diseño visual, pero sí por comportamiento jerárquico y apertura opcional.",
+          "La query compartida representa la base del balance anual y no necesariamente todo el enriquecimiento final del reporte."
+        ],
+        "executive_justification": "CONR30084 no es un reporte difícil por maquetación, sino por su comportamiento contable y jerárquico. La apertura opcional por auxiliar, la resolución de descripciones desde múltiples tablas y la necesidad de validar saldo anterior, neto y saldo actual vuelven el QA bastante delicado. La complejidad real está en garantizar que el balance cierre exactamente igual en todos los niveles de agrupación."
+      },
+      "migration_assets_detected": {
+        "has_queries": true,
+        "has_formulas": true,
+        "has_layout_model": true,
+        "has_program_units": true,
+        "has_triggers": true
+      },
+      "future_migration_notes": {
+        "keep_for_migration": true,
+        "priority": "high",
+        "notes": [
+          "APERTURA_X_AUXILIAR altera la granularidad del resultado y debe modelarse explícitamente.",
+          "La lógica de DE_AUXILIARFORMULA debe desacoplarse del reporte y centralizarse.",
+          "Conviene testear por separado el modo resumido y el modo con apertura por auxiliar.",
+          "Los cálculos de saldo anterior, neto y saldo actual deben validarse con datasets de control.",
+          "La jerarquía división/grupo/subgrupo/cuenta debe conservarse exactamente en el render final."
+        ]
+      },
+      "traceability": {
+        "source_inputs": {
+          "images_received": 6,
+          "queries_received": 2,
+          "formula_code_received": 7,
+          "layout_received": 3
+        },
+        "generated_at": "2026-04-05",
+        "status": "quoted"
+      }
+    }
+  },
+  {
+    "id": "trm_1775427704457_4",
+    "title": "CONR30084TXT",
+    "category": "MIGRACION",
+    "priority": "CRITICA",
+    "completed": false,
+    "metadata": {
+      "log_version": "1.0",
+      "agent": "ChatGPT",
+      "consumer": "MarTwin",
+      "operation_type": "report_quotation",
+      "project": {
+        "client": "Zurich",
+        "vendor": "Squad Alpha",
+        "phase": "Fase 2",
+        "source_technology": "Oracle Reports RDF",
+        "target_technology": "HTML/JS report engine"
+      },
+      "report": {
+        "name": "CONR30084TXT",
+        "file_name": "CONR30084TXT.rdf",
+        "module": "Contabilidad/Balance",
+        "category": "report"
+      },
+      "quotation": {
+        "complexity": "Alta",
+        "hours": {
+          "development": 27,
+          "qa": 25,
+          "buffer": 6,
+          "total": 58
+        },
+        "confidence": "media_alta"
+      },
+      "task_management": {
+        "priority": "high",
+        "severity": "high",
+        "execution_order": "early",
+        "reason": "High accounting complexity due to hierarchical grouping, optional auxiliary opening, monthly balance reconstruction, row visibility triggers, and sensitive TXT-style output formatting."
+      },
+      "analysis": {
+        "context": "Reporte de balance contable en formato texto/listado, por fecha de balance, compañía y moneda, con posibilidad de apertura por auxiliar. Trabaja con jerarquía contable por división, grupo, subgrupo y cuenta, y muestra saldo anterior, debe, haber, neto y saldo actual.",
+        "technical_findings": {
+          "user_parameters": [
+            "APERTURA_X_AUXILIAR",
+            "CD_COMPANIA",
+            "CD_MONEDA",
+            "FECHA_BALANCE"
+          ],
+          "queries": [
+            "Q_BALANCE"
+          ],
+          "groups": [
+            "G_DIVISION",
+            "G_GRUPO",
+            "G_SUBGRUPO",
+            "G_CUENTA",
+            "G_BALANCE",
+            "G_CUENTAS"
+          ],
+          "data_links": [],
+          "formula_columns": [
+            "ANO_CONTABLE",
+            "MES",
+            "NM_USUARIO",
+            "TITULO",
+            "UNIDAD_ADM",
+            "USUARIO",
+            "CD_CUENTA",
+            "MT_DEBE",
+            "MT_HABER",
+            "MT_NETO",
+            "SALDO_ANTERIOR",
+            "SALDO_ACTUAL"
+          ],
+          "summary_columns": [
+            "TOT_DEBE",
+            "TOT_HABER",
+            "TOT_NETO"
+          ],
+          "report_triggers": [
+            "BEFORE PARAMETER FORM",
+            "AFTER PARAMETER FORM",
+            "BEFORE REPORT",
+            "BETWEEN PAGES",
+            "AFTER REPORT",
+            "R_BALANCE_FORMAT_TRIGGER"
+          ],
+          "program_units": [
+            "ANO_CONTABLEFORMULA",
+            "MESFORMULA",
+            "MT_DEBEFORMULA",
+            "MT_HABERFORMULA",
+            "MT_NETOFORMULA",
+            "SALDO_ANTERIORFORMULA",
+            "SALDO_ACTUALFORMULA",
+            "TITULOFORMULA",
+            "NM_USUARIOFORMULA",
+            "UNIDAD_ADMFORMULA",
+            "USUARIOFORMULA",
+            "CD_CUENTAFORMULA",
+            "BEFOREREPORT",
+            "R_BALANCEFORMATTRIGGER"
+          ],
+          "layout_complexity": "medium_visual_high_functional",
+          "layout_notes": "Layout tabular ancho y lineal, sensible al formato TXT. La dificultad visual no está en la estética sino en la alineación, la salida lineal y la correcta supresión de filas sin saldo o movimiento."
+        },
+        "qa_impact": "Riesgo alto en la reconstrucción del saldo anterior, cálculo de saldo actual, selección correcta de importes mensuales, ocultamiento de filas por format trigger, apertura por auxiliar y consistencia de salida en formato TXT.",
+        "recommended_action": [
+          "Separar la migración en una capa base de saldos y una capa de transformación de columnas calculadas.",
+          "Replicar exactamente la lógica de SALDO_ANTERIOR y SALDO_ACTUAL antes de validar el render.",
+          "Implementar explícitamente la lógica del R_BALANCEFORMATTRIGGER para evitar filas sobrantes o faltantes.",
+          "Tratar APERTURA_X_AUXILIAR como una variación estructural del reporte.",
+          "Ejecutar QA por jerarquía contable, por importes mensuales y por salida final tipo TXT."
+        ],
+        "assumptions": [
+          "No se observa el listado completo de todas las program units en las capturas, pero las fórmulas compartidas alcanzan para confirmar complejidad alta.",
+          "La salida final debe respetar formato lineal sensible al ancho y alineación.",
+          "La lógica funcional pesa más que la complejidad estética del layout."
+        ],
+        "executive_justification": "CONR30084TXT no es difícil por diseño visual sofisticado, sino por su lógica contable acumulativa y por la sensibilidad del formato TXT. El cálculo de saldo anterior, la selección mensual de importes, la apertura opcional por auxiliar y la ocultación condicional de filas elevan tanto el esfuerzo de desarrollo como el de QA."
+      },
+      "migration_assets_detected": {
+        "has_queries": true,
+        "has_formulas": true,
+        "has_layout_model": true,
+        "has_program_units": true,
+        "has_triggers": true
+      },
+      "future_migration_notes": {
+        "keep_for_migration": true,
+        "priority": "high",
+        "notes": [
+          "Replicar fielmente la lógica de saldo_anteriorFormula y saldo_actualFormula.",
+          "Implementar la supresión de filas de R_balanceFormatTrigger con el mismo criterio que Oracle Reports.",
+          "Validar modo resumido versus apertura por auxiliar.",
+          "Cuidar la alineación y ancho de columnas por tratarse de una salida TXT sensible.",
+          "Preservar exactamente la jerarquía división/grupo/subgrupo/cuenta en la salida final."
+        ]
+      },
+      "traceability": {
+        "source_inputs": {
+          "images_received": 7,
+          "queries_received": 1,
+          "formula_code_received": 14,
+          "layout_received": 3
+        },
+        "generated_at": "2026-04-05",
+        "status": "quoted"
+      }
+    }
+  },
+  {
+    "id": "trm_1775427704461_5",
+    "title": "CONR30085TXT",
+    "category": "MIGRACION",
+    "priority": "CRITICA",
+    "completed": false,
+    "metadata": {
+      "log_version": "1.0",
+      "agent": "ChatGPT",
+      "consumer": "MarTwin",
+      "operation_type": "report_quotation",
+      "project": {
+        "client": "Zurich",
+        "vendor": "Squad Alpha",
+        "phase": "Fase 2",
+        "source_technology": "Oracle Reports RDF",
+        "target_technology": "HTML/JS report engine"
+      },
+      "report": {
+        "name": "CONR30085TXT",
+        "file_name": "CONR30085TXT.rdf",
+        "module": "Contabilidad/Balance",
+        "category": "report"
+      },
+      "quotation": {
+        "complexity": "Alta",
+        "hours": {
+          "development": 26,
+          "qa": 24,
+          "buffer": 5,
+          "total": 55
+        },
+        "confidence": "media"
+      },
+      "task_management": {
+        "priority": "high",
+        "severity": "high",
+        "execution_order": "early",
+        "reason": "High accounting complexity due to hierarchical grouping, balance calculations, optional auxiliary opening, TXT-sensitive output formatting, and QA risk around filtering by asiento."
+      },
+      "analysis": {
+        "context": "Reporte de balance contable en formato TXT, por compañía, moneda, fecha de balance y número de asiento, con posibilidad de apertura por auxiliar. Trabaja con jerarquía contable por división, grupo, subgrupo y cuenta, mostrando debe, haber, neto, saldo anterior y saldo actual.",
+        "technical_findings": {
+          "user_parameters": [
+            "APERTURA_X_AUXILIAR",
+            "CD_COMPANIA",
+            "CD_MONEDA",
+            "FECHA_BALANCE",
+            "NU_ASIENTO"
+          ],
+          "queries": [
+            "Q_BALANCE"
+          ],
+          "groups": [
+            "G_DIVISION",
+            "G_GRUPO",
+            "G_SUBGRUPO",
+            "G_CUENTA",
+            "G_BALANCE",
+            "G_CUENTAS"
+          ],
+          "data_links": [],
+          "formula_columns": [
+            "ANO_CONTABLE",
+            "MES",
+            "NM_USUARIO",
+            "TITULO",
+            "UNIDAD_ADM",
+            "USUARIO",
+            "CD_CUENTA",
+            "MT_DEBE",
+            "MT_HABER",
+            "MT_NETO",
+            "SALDO_ACTUAL",
+            "SALDO_ANTERIOR"
+          ],
+          "summary_columns": [],
+          "report_triggers": [],
+          "program_units": [],
+          "layout_complexity": "medium_visual_high_functional",
+          "layout_notes": "Layout lineal y ancho, sensible a formato TXT. La dificultad principal está en alineación, columnas fijas, jerarquía contable y coherencia de importes."
+        },
+        "qa_impact": "Riesgo alto en la consistencia de saldo anterior y saldo actual, cálculo de debe/haber/neto, apertura por auxiliar, respeto de jerarquía contable, filtrado por asiento y salida final tipo TXT.",
+        "recommended_action": [
+          "Reutilizar la estrategia de migración de CONR30084TXT, tratando NU_ASIENTO como variante funcional explícita.",
+          "Validar si el filtro por asiento cambia la granularidad o solo recorta el conjunto de cuentas.",
+          "Replicar exactamente la lógica de ANO_CONTABLE, MES y TITULO.",
+          "Ejecutar QA comparando salida con y sin apertura por auxiliar, además del recorte por asiento.",
+          "Cuidar el render TXT en ancho, columnas y filas."
+        ],
+        "assumptions": [
+          "No se visualiza aún el set completo de Program Units y triggers específicos de este reporte.",
+          "La familia funcional es análoga a CONR30084/CONR30084TXT.",
+          "El parámetro NU_ASIENTO restringe el universo pero no simplifica de forma sustancial la lógica de negocio."
+        ],
+        "executive_justification": "CONR30085TXT conserva la complejidad contable y de formato de la familia 30084, sumando un recorte por asiento que introduce una variante funcional adicional. El mayor esfuerzo sigue estando en reproducir correctamente el balance y validarlo en formato TXT con apertura opcional por auxiliar."
+      },
+      "migration_assets_detected": {
+        "has_queries": true,
+        "has_formulas": true,
+        "has_layout_model": true,
+        "has_program_units": false,
+        "has_triggers": false
+      },
+      "future_migration_notes": {
+        "keep_for_migration": true,
+        "priority": "high",
+        "notes": [
+          "Revisar cómo impacta NU_ASIENTO en el dataset final.",
+          "Confirmar si existen triggers/program units específicos no capturados en las imágenes.",
+          "Preservar exactamente la jerarquía división/grupo/subgrupo/cuenta.",
+          "Validar formato TXT en ancho y alineación."
+        ]
+      },
+      "traceability": {
+        "source_inputs": {
+          "images_received": 8,
+          "queries_received": 1,
+          "formula_code_received": 6,
+          "layout_received": 3
+        },
+        "generated_at": "2026-04-05",
+        "status": "quoted"
+      }
+    }
+  },
+  {
+    "id": "trm_1775427704475_6",
+    "title": "CONR30086",
+    "category": "MIGRACION",
+    "priority": "CRITICA",
+    "completed": false,
+    "metadata": {
+      "log_version": "1.0",
+      "agent": "ChatGPT",
+      "consumer": "MarTwin",
+      "operation_type": "report_quotation",
+      "project": {
+        "client": "Zurich",
+        "vendor": "Squad Alpha",
+        "phase": "Fase 2",
+        "source_technology": "Oracle Reports RDF",
+        "target_technology": "HTML/JS report engine"
+      },
+      "report": {
+        "name": "CONR30086",
+        "file_name": "CONR30086.rdf",
+        "module": "Contabilidad/Balance",
+        "category": "report"
+      },
+      "quotation": {
+        "complexity": "Alta",
+        "hours": {
+          "development": 27,
+          "qa": 25,
+          "buffer": 6,
+          "total": 58
+        },
+        "confidence": "media_alta"
+      },
+      "task_management": {
+        "priority": "high",
+        "severity": "high",
+        "execution_order": "early",
+        "reason": "High accounting complexity due to hierarchical grouping, monthly balance reconstruction, row visibility triggers, optional auxiliary opening, title-level formulas, and high QA sensitivity."
+      },
+      "analysis": {
+        "context": "Reporte de balance contable por fecha de balance, compañía y moneda, con posibilidad de apertura por auxiliar. Agrupa jerárquicamente por división, grupo, subgrupo y cuenta, mostrando saldo anterior, debe, haber, neto y saldo actual, con subtítulos y totales condicionados por nivel jerárquico.",
+        "technical_findings": {
+          "user_parameters": [
+            "APERTURA_X_AUXILIAR",
+            "CD_COMPANIA",
+            "CD_MONEDA",
+            "FECHA_BALANCE"
+          ],
+          "queries": [
+            "Q_BALANCE"
+          ],
+          "groups": [
+            "G_DIVISION",
+            "G_GRUPO",
+            "G_SUBGRUPO",
+            "G_CUENTA",
+            "G_BALANCE",
+            "G_CUENTAS"
+          ],
+          "data_links": [],
+          "formula_columns": [
+            "ANO_CONTABLE",
+            "MES",
+            "NM_COMPANIA",
+            "NM_USUARIO",
+            "TITULO",
+            "UNIDAD_ADM",
+            "USUARIO",
+            "CD_CUENTA",
+            "DEBE_TITULO",
+            "HABER_TITULO",
+            "MT_DEBE",
+            "MT_DEBE_DETALLE",
+            "MT_HABER",
+            "MT_HABER_DETALLE",
+            "MT_NETO",
+            "MT_NETO_DETALLE",
+            "NETO_TITULO",
+            "SALDO_ACTUAL",
+            "SALDO_ANTERIOR"
+          ],
+          "summary_columns": [],
+          "report_triggers": [
+            "BEFORE PARAMETER FORM",
+            "AFTER PARAMETER FORM",
+            "BEFORE REPORT",
+            "BETWEEN PAGES",
+            "AFTER REPORT",
+            "B_7FORMATTRIGGER",
+            "M_BALANCE_FTRFORMATTRIGGER",
+            "R_BALANCEFORMATTRIGGER"
+          ],
+          "program_units": [
+            "ANO_CONTABLEFORMULA",
+            "BEFOREREPORT",
+            "B_7FORMATTRIGGER",
+            "CD_CUENTAFORMULA",
+            "CF_1FORMULA",
+            "CF_1FORMULA0007",
+            "CF_2FORMULA",
+            "DEBE_DETALLEFORMULA",
+            "HABER_DETALLEFORMULA",
+            "MESFORMULA",
+            "MT_DEBEFORMULA",
+            "MT_HABERFORMULA",
+            "MT_NETOFORMULA",
+            "MT_NETO_DETALLEFORMULA",
+            "M_BALANCE_FTRFORMATTRIGGER",
+            "NETO_TITULOFORMULA",
+            "NM_USUARIOFORMULA",
+            "R_BALANCEFORMATTRIGGER",
+            "SALDO_ACTUALFORMULA",
+            "SALDO_ANTERIORFORMULA",
+            "TITULOFORMULA",
+            "UNIDAD_ADMFORMULA",
+            "USUARIOFORMULA"
+          ],
+          "layout_complexity": "low_visual_high_functional",
+          "layout_notes": "Layout tabular compacto con encabezado de columnas, detalle por cuenta y pie de totales. No es complejo estéticamente, pero depende fuertemente de jerarquía contable, fórmulas de cálculo y visibilidad condicional."
+        },
+        "qa_impact": "Riesgo alto en saldo anterior acumulado, saldo actual, netos, títulos por nivel, apertura correcta por auxiliar, filas ocultas por format trigger y consistencia entre jerarquía e importes.",
+        "recommended_action": [
+          "Separar la migración en capas: dataset base, cálculos mensuales, saldos acumulados, reglas de visibilidad y presentación final.",
+          "Implementar y validar por separado saldo_anterior, saldo_actual, mt_debe, mt_haber y mt_neto.",
+          "Replicar exactamente los format triggers, especialmente la supresión de filas sin movimiento y la lógica de apertura por auxiliar.",
+          "Validar casos con y sin apertura por auxiliar, filas en cero y distintos niveles jerárquicos.",
+          "Revisar el impacto funcional de usar CONT_SALDOS_CONTABLES_ANUALES como fuente de base."
+        ],
+        "assumptions": [
+          "La complejidad dominante está en la lógica contable y la visibilidad condicional, no en el diseño visual.",
+          "Las capturas y fórmulas compartidas son suficientes para clasificarlo como Alta.",
+          "El comportamiento final debe coincidir funcionalmente con Oracle Reports en importes, jerarquía y visibilidad."
+        ],
+        "executive_justification": "CONR30086 concentra lógica contable acumulativa, reglas de ocultamiento, apertura opcional por auxiliar y fórmulas de títulos y subtotales. No es difícil por maquetación, pero sí por densidad funcional y sensibilidad de QA, lo que lo ubica claramente en complejidad alta."
+      },
+      "migration_assets_detected": {
+        "has_queries": true,
+        "has_formulas": true,
+        "has_layout_model": true,
+        "has_program_units": true,
+        "has_triggers": true
+      },
+      "future_migration_notes": {
+        "keep_for_migration": true,
+        "priority": "high",
+        "notes": [
+          "Replicar con exactitud saldo_anteriorFormula y saldo_actualFormula.",
+          "Implementar la lógica de R_balanceFormatTrigger y B_7FormatTrigger sin simplificaciones.",
+          "Validar apertura_x_auxiliar como decisión estructural del reporte.",
+          "Probar títulos y subtotales por nivel jerárquico.",
+          "Revisar diferencias funcionales entre fuentes CONT_* y otras variantes de la familia."
+        ]
+      },
+      "traceability": {
+        "source_inputs": {
+          "images_received": 4,
+          "queries_received": 1,
+          "formula_code_received": 23,
+          "layout_received": 1
+        },
+        "generated_at": "2026-04-05",
+        "status": "quoted"
+      }
+    }
+  },
+  {
+    "id": "trm_1775427704479_7",
+    "title": "CONR30086TXT",
+    "category": "MIGRACION",
+    "priority": "CRITICA",
+    "completed": false,
+    "metadata": {
+      "log_version": "1.0",
+      "agent": "ChatGPT",
+      "consumer": "MarTwin",
+      "operation_type": "report_quotation",
+      "project": {
+        "client": "Zurich",
+        "vendor": "Squad Alpha",
+        "phase": "Fase 2",
+        "source_technology": "Oracle Reports RDF",
+        "target_technology": "HTML/JS report engine"
+      },
+      "report": {
+        "name": "CONR30086TXT",
+        "file_name": "CONR30086TXT.rdf",
+        "module": "Contabilidad/Balance",
+        "category": "report"
+      },
+      "quotation": {
+        "complexity": "Alta",
+        "hours": {
+          "development": 27,
+          "qa": 25,
+          "buffer": 6,
+          "total": 58
+        },
+        "confidence": "media_alta"
+      },
+      "task_management": {
+        "priority": "high",
+        "severity": "high",
+        "execution_order": "early",
+        "reason": "High accounting complexity due to hierarchical grouping, monthly balance reconstruction, TXT-sensitive output formatting, optional auxiliary opening, and row visibility triggers."
+      },
+      "analysis": {
+        "context": "Reporte de balance contable en formato TXT, por fecha de balance, compañía y moneda, con posibilidad de apertura por auxiliar. Agrupa jerárquicamente por división, grupo, subgrupo y cuenta, mostrando saldo anterior, debe, haber, neto y saldo actual.",
+        "technical_findings": {
+          "user_parameters": [
+            "APERTURA_X_AUXILIAR",
+            "CD_COMPANIA",
+            "CD_MONEDA",
+            "FECHA_BALANCE"
+          ],
+          "queries": [
+            "Q_BALANCE"
+          ],
+          "groups": [
+            "G_DIVISION",
+            "G_GRUPO",
+            "G_SUBGRUPO",
+            "G_CUENTA",
+            "G_BALANCE",
+            "G_CUENTAS"
+          ],
+          "data_links": [],
+          "formula_columns": [
+            "ANO_CONTABLE",
+            "MES",
+            "NM_USUARIO",
+            "TITULO",
+            "UNIDAD_ADM",
+            "USUARIO",
+            "CD_CUENTA",
+            "MT_DEBE",
+            "MT_HABER",
+            "MT_NETO",
+            "SALDO_ACTUAL",
+            "SALDO_ANTERIOR"
+          ],
+          "summary_columns": [],
+          "report_triggers": [
+            "BEFORE PARAMETER FORM",
+            "AFTER PARAMETER FORM",
+            "BEFORE REPORT",
+            "BETWEEN PAGES",
+            "AFTER REPORT",
+            "M_BALANCE_GRPFRFORMATTRIGGER",
+            "M_BALANCE_HDRFORMATTRIGGER",
+            "R_BALANCEFORMATTRIGGER"
+          ],
+          "program_units": [
+            "ANO_CONTABLEFORMULA",
+            "BEFOREREPORT",
+            "CD_CUENTAFORMULA",
+            "MESFORMULA",
+            "MT_DEBEFORMULA",
+            "MT_HABERFORMULA",
+            "MT_NETOFORMULA",
+            "M_BALANCE_GRPFRFORMATTRIGGER",
+            "M_BALANCE_HDRFORMATTRIGGER",
+            "NM_USUARIOFORMULA",
+            "R_BALANCEFORMATTRIGGER",
+            "SALDO_ACTUALFORMULA",
+            "SALDO_ANTERIORFORMULA",
+            "TITULOFORMULA",
+            "UNIDAD_ADMFORMULA",
+            "USUARIOFORMULA"
+          ],
+          "layout_complexity": "medium_visual_high_functional",
+          "layout_notes": "Layout lineal ancho en formato TXT, sensible a columnas fijas, alineación y supresión de filas. La complejidad visual no está en la estética sino en la fidelidad del formato de salida."
+        },
+        "qa_impact": "Riesgo alto en saldo anterior acumulado, saldo actual, netos, visibilidad de filas por format trigger, apertura correcta por auxiliar, alineación TXT y consistencia de importes por jerarquía contable.",
+        "recommended_action": [
+          "Separar la migración en capas: dataset base, cálculos mensuales, saldos acumulados, visibilidad condicional y render TXT.",
+          "Implementar y validar por separado saldo_anterior, saldo_actual, mt_debe, mt_haber y mt_neto.",
+          "Replicar exactamente M_BALANCE_GRPFRFORMATTRIGGER, M_BALANCE_HDRFORMATTRIGGER y R_BALANCEFORMATTRIGGER.",
+          "Validar con casos con y sin apertura por auxiliar.",
+          "Controlar especialmente ancho, alineación y supresión de filas en la salida TXT."
+        ],
+        "assumptions": [
+          "La familia funcional es análoga a CONR30086, pero con sensibilidad adicional por formato TXT.",
+          "Las capturas y program units compartidas son suficientes para clasificarlo como Alta.",
+          "La complejidad dominante está en lógica contable y formato de salida, no en diseño visual sofisticado."
+        ],
+        "executive_justification": "CONR30086TXT combina lógica contable acumulativa, jerarquía por niveles, triggers de visibilidad y sensibilidad de formato TXT. Aunque visualmente es simple, la dificultad real está en mantener exactitud de cálculos y reproducir el comportamiento de ocultamiento y alineación del original."
+      },
+      "migration_assets_detected": {
+        "has_queries": true,
+        "has_formulas": true,
+        "has_layout_model": true,
+        "has_program_units": true,
+        "has_triggers": true
+      },
+      "future_migration_notes": {
+        "keep_for_migration": true,
+        "priority": "high",
+        "notes": [
+          "Replicar con exactitud saldo_anteriorFormula y saldo_actualFormula.",
+          "No simplificar los format triggers de grupo, header y detalle.",
+          "Validar apertura_x_auxiliar como decisión estructural del reporte.",
+          "Controlar salida TXT con foco en columnas, ancho y filas ocultas.",
+          "Comparar contra Oracle en casos con saldo cero y con movimiento."
+        ]
+      },
+      "traceability": {
+        "source_inputs": {
+          "images_received": 4,
+          "queries_received": 1,
+          "formula_code_received": 16,
+          "layout_received": 1
+        },
+        "generated_at": "2026-04-05",
+        "status": "quoted"
+      }
+    }
+  },
+  {
+    "id": "trm_1775427704491_8",
+    "title": "CONR30087TXT",
+    "category": "MIGRACION",
+    "priority": "CRITICA",
+    "completed": false,
+    "metadata": {
+      "log_version": "1.0",
+      "agent": "ChatGPT",
+      "consumer": "MarTwin",
+      "operation_type": "report_quotation",
+      "project": {
+        "client": "Zurich",
+        "vendor": "Squad Alpha",
+        "phase": "Fase 2",
+        "source_technology": "Oracle Reports RDF",
+        "target_technology": "HTML/JS report engine"
+      },
+      "report": {
+        "name": "CONR30087TXT",
+        "file_name": "CONR30087TXT.rdf",
+        "module": "Contabilidad/Balance",
+        "category": "report"
+      },
+      "quotation": {
+        "complexity": "Alta",
+        "hours": {
+          "development": 29,
+          "qa": 26,
+          "buffer": 7,
+          "total": 62
+        },
+        "confidence": "alta"
+      },
+      "task_management": {
+        "priority": "high",
+        "severity": "high",
+        "execution_order": "early",
+        "reason": "High accounting complexity due to hierarchical aggregation built with multiple UNION ALL branches, monthly balance reconstruction, TXT-sensitive output formatting, optional auxiliary opening, and conditional row suppression."
+      },
+      "analysis": {
+        "context": "Reporte de balance contable en formato TXT con agrupación jerárquica por división, grupo, subgrupo y cuenta. Permite apertura por auxiliar, reconstruye saldos contables por mes y consolida niveles mediante varias ramas UNION ALL, incluyendo el impacto de un asiento puntual sobre el balance anual.",
+        "technical_findings": {
+          "user_parameters": [
+            "APERTURA_X_AUXILIAR",
+            "CD_COMPANIA",
+            "CD_MONEDA",
+            "FECHA_BALANCE",
+            "NU_ASIENTO"
+          ],
+          "queries": [
+            "Q_BALANCE"
+          ],
+          "groups": [
+            "G_DIVISION",
+            "G_GRUPO",
+            "G_SUBGRUPO",
+            "G_CUENTA",
+            "G_BALANCE",
+            "G_CUENTAS"
+          ],
+          "data_links": [],
+          "formula_columns": [
+            "ANO_CONTABLE",
+            "MES",
+            "NM_USUARIO",
+            "TITULO",
+            "UNIDAD_ADM",
+            "USUARIO",
+            "CD_CUENTA",
+            "MT_DEBE",
+            "MT_HABER",
+            "MT_NETO",
+            "SALDO_ACTUAL",
+            "SALDO_ANTERIOR"
+          ],
+          "summary_columns": [],
+          "report_triggers": [
+            "BEFORE PARAMETER FORM",
+            "AFTER PARAMETER FORM",
+            "BEFORE REPORT",
+            "BETWEEN PAGES",
+            "AFTER REPORT",
+            "R_BALANCEFORMATTRIGGER"
+          ],
+          "program_units": [
+            "ANO_CONTABLEFORMULA",
+            "BEFOREREPORT",
+            "CD_CUENTAFORMULA",
+            "MESFORMULA",
+            "MT_DEBEFORMULA",
+            "MT_HABERFORMULA",
+            "MT_NETOFORMULA",
+            "NM_USUARIOFORMULA",
+            "R_BALANCEFORMATTRIGGER",
+            "SALDO_ACTUALFORMULA",
+            "SALDO_ANTERIORFORMULA",
+            "TITULOFORMULA",
+            "UNIDAD_ADMFORMULA",
+            "USUARIOFORMULA"
+          ],
+          "layout_complexity": "medium_visual_high_functional",
+          "layout_notes": "Layout TXT lineal y ancho, visualmente austero, pero sensible a alineación fija, columnas extensas y supresión de líneas. La complejidad está en la estructura funcional y no en el diseño."
+        },
+        "qa_impact": "Riesgo muy alto en la reconstrucción de saldos por mes, consolidación por niveles, impacto del asiento puntual NU_ASIENTO, apertura por auxiliar, y exactitud de filas visibles/ocultas cuando saldo, debe y haber son cero.",
+        "recommended_action": [
+          "Separar la migración en capas: dataset jerárquico, consolidación por niveles, cálculos mensuales, saldos acumulados y render TXT.",
+          "Migrar la query Q_BALANCE preservando exactamente la lógica UNION ALL por cada nivel contable.",
+          "Validar por separado saldo_anterior, mt_debe, mt_haber, mt_neto y saldo_actual.",
+          "Replicar exactamente R_BALANCEFORMATTRIGGER para no alterar visibilidad de filas.",
+          "Probar escenarios con y sin apertura por auxiliar y con distintos valores de NU_ASIENTO."
+        ],
+        "assumptions": [
+          "La lógica de consolidación jerárquica mediante UNION ALL es funcionalmente obligatoria y no debe simplificarse sin validación.",
+          "La sensibilidad del formato TXT agrega esfuerzo de QA aunque el layout visual sea simple.",
+          "Las capturas, SQL y fórmulas compartidas son suficientes para clasificarlo como Alta."
+        ],
+        "executive_justification": "CONR30087TXT es un reporte contable de alta complejidad por su consolidación jerárquica manual, su dependencia de saldos anuales más movimientos puntuales, sus cálculos acumulativos y su sensibilidad de salida TXT. El riesgo no está en la estética sino en la fidelidad funcional y contable."
+      },
+      "migration_assets_detected": {
+        "has_queries": true,
+        "has_formulas": true,
+        "has_layout_model": true,
+        "has_program_units": true,
+        "has_triggers": true
+      },
+      "future_migration_notes": {
+        "keep_for_migration": true,
+        "priority": "high",
+        "notes": [
+          "No simplificar la Q_BALANCE: los UNION ALL por nivel son parte del comportamiento del reporte.",
+          "Preservar la lógica exacta de impacto del parámetro NU_ASIENTO.",
+          "Replicar saldo_anteriorFormula y saldo_actualFormula sin reinterpretaciones.",
+          "Controlar visibilidad de filas con R_BALANCEFORMATTRIGGER.",
+          "Validar salida TXT con foco en ancho, columnas y registros suprimidos."
+        ]
+      },
+      "traceability": {
+        "source_inputs": {
+          "images_received": 5,
+          "queries_received": 1,
+          "formula_code_received": 14,
+          "layout_received": 1
+        },
+        "generated_at": "2026-04-05",
+        "status": "quoted"
+      }
+    }
+  },
+  {
+    "id": "trm_1775427704494_9",
+    "title": "CONR30160",
+    "category": "MIGRACION",
+    "priority": "NORMAL",
+    "completed": false,
+    "metadata": {
+      "log_version": "1.1",
+      "agent": "Gemini-Nexo",
+      "consumer": "MarTwin",
+      "operation_type": "report_quotation",
+      "project": {
+        "client": "Zurich",
+        "vendor": "Squad Alpha",
+        "phase": "Fase 2",
+        "source_technology": "Oracle Reports RDF",
+        "target_technology": "HTML/JS report engine"
+      },
+      "report": {
+        "name": "CONR30160",
+        "file_name": "CONR30160.rdf",
+        "module": "Contabilidad / Libro Diario",
+        "category": "report"
+      },
+      "quotation": {
+        "complexity": "ALTA",
+        "hours": {
+          "development": 14,
+          "qa": 7,
+          "buffer": 3,
+          "total": 24
+        },
+        "confidence": "alta"
+      },
+      "analysis": {
+        "context": "Libro Diario contable. Reporte de estructura tabular estándar con lógica de filtrado de asientos anulados.",
+        "technical_findings": {
+          "formula_columns": [
+            "TEXTO_CD_POSTAL",
+            "TEXTO_DIRECCION"
+          ],
+          "layout_complexity": "BAJA",
+          "layout_notes": "Estructura repetitiva simple. Se requiere precisión en el alineamiento de columnas debe/haber."
+        },
+        "executive_justification": "Se reclasifica a complejidad moderada-baja dado que la lógica de supresión y fórmulas de cabecera son estandarizables mediante componentes comunes de la Squad."
+      }
+    }
+  },
+  {
+    "id": "trm_1775427704496_10",
+    "title": "CONR30161",
+    "category": "MIGRACION",
+    "priority": "NORMAL",
+    "completed": false,
+    "metadata": {
+      "log_version": "1.0",
+      "agent": "ChatGPT",
+      "consumer": "MarTwin",
+      "operation_type": "report_quotation",
+      "project": {
+        "client": "Zurich",
+        "vendor": "Squad Alpha",
+        "phase": "Fase 2",
+        "source_technology": "Oracle Reports RDF",
+        "target_technology": "HTML/JS report engine"
+      },
+      "report": {
+        "name": "CONR30161",
+        "file_name": "CONR30161.rdf",
+        "module": "Contabilidad / Libro Diario",
+        "category": "report"
+      },
+      "quotation": {
+        "complexity": "MEDIA",
+        "hours": {
+          "development": 15.8,
+          "qa": 8.4,
+          "buffer": 2.4,
+          "total": 26.6
+        },
+        "confidence": "media"
+      },
+      "analysis": {
+        "context": "Libro diario contable con cabecera institucional separada en query propia y detalle de asientos/movimientos asociado a una secuencia de proceso.",
+        "technical_findings": {
+          "user_parameters": [
+            "NU_SEC"
+          ],
+          "queries": [
+            "DATOS_COMPANIA",
+            "Q_ASIENTOS"
+          ],
+          "groups": [
+            "DATOS_COMPANIA",
+            "G_ENCABEZADO",
+            "G_ASIENTOS",
+            "G_MOV_ASIENTOS"
+          ],
+          "data_links": [],
+          "formula_columns": [],
+          "summary_columns": [
+            "TOT_DEBE",
+            "TOT_HABER"
+          ],
+          "report_triggers": [
+            "BEFORE REPORT"
+          ],
+          "program_units": [
+            "BeforeReport",
+            "B_CAGR_NM_UNIDAD_ADMFormatTrig",
+            "F_paginaFormatTrigger",
+            "M_mov_asientos_GRPFRFormatTrig"
+          ],
+          "layout_complexity": "MEDIA",
+          "layout_notes": "Layout tabular de libro diario con cabecera corporativa separada, paginación acumulada, bloque de encabezado por asiento y detalle de movimientos por línea."
+        },
+        "qa_impact": "Debe validarse la correcta sincronización entre la query DATOS_COMPANIA y la cabecera del reporte, la paginación acumulada mediante PAG, y la omisión visual de asientos anulados en el detalle.",
+        "recommended_action": [
+          "Separar claramente en migración la cabecera corporativa del detalle operativo",
+          "Replicar la lógica de ocultamiento de asientos anulados en capa de render o preprocesamiento",
+          "Reemplazar auditoria_report por logging nativo del motor destino",
+          "Validar que la numeración de página respete el offset de PAG"
+        ],
+        "assumptions": [
+          "La query DATOS_COMPANIA devuelve una única fila válida para la cabecera",
+          "La lógica de paginación offset basada en PAG debe conservarse en la migración",
+          "Los asientos anulados deben seguir ocultándose del bloque de movimientos"
+        ],
+        "executive_justification": "La complejidad no está en la cantidad de queries sino en la coordinación entre cabecera fija, encabezado por asiento, paginación desplazada y reglas visuales de exclusión de registros anulados."
+      },
+      "migration_assets_detected": {
+        "has_queries": true,
+        "has_formulas": false,
+        "has_layout_model": true,
+        "has_program_units": true,
+        "has_triggers": true
+      },
+      "future_migration_notes": {
+        "keep_for_migration": true,
+        "priority": "medium",
+        "notes": [
+          "Preservar F_paginaFormatTrigger",
+          "Replicar M_mov_asientos_GRPFRFormatTrig",
+          "Mantener separación entre DATOS_COMPANIA y Q_ASIENTOS"
+        ]
+      },
+      "traceability": {
+        "source_inputs": {
+          "images_received": 5,
+          "queries_received": 2,
+          "formula_code_received": 4,
+          "layout_received": 1
+        },
+        "generated_at": "2026-04-05T00:00:00Z",
+        "status": "quoted"
+      }
+    }
+  },
+  {
+    "id": "trm_1775427704499_11",
+    "title": "CONR50210",
+    "category": "MIGRACION",
+    "priority": "ALTA",
+    "completed": false,
+    "metadata": {
+      "log_version": "1.0",
+      "agent": "ChatGPT",
+      "consumer": "MarTwin",
+      "operation_type": "report_quotation",
+      "project": {
+        "client": "Zurich",
+        "vendor": "Squad Alpha",
+        "phase": "Fase 2",
+        "source_technology": "Oracle Reports RDF",
+        "target_technology": "HTML/JS report engine"
+      },
+      "report": {
+        "name": "CONR50210",
+        "file_name": "CONR50210.rdf",
+        "module": "Contabilidad/Asientos",
+        "category": "report"
+      },
+      "quotation": {
+        "complexity": "Media",
+        "hours": {
+          "development": 17,
+          "qa": 17,
+          "buffer": 3,
+          "total": 37
+        },
+        "confidence": "media_alta"
+      },
+      "analysis": {
+        "context": "Reporte orientado a la consulta e impresión de un asiento contable temporal, filtrado por compañía, moneda y número de asiento. Presenta una cabecera con datos generales del asiento y un detalle de movimientos contables con línea, cuenta contable, auxiliares, concepto del movimiento, monto debe y monto haber, incluyendo totalización final de debe y haber.",
+        "technical_findings": {
+          "user_parameters": [
+            "CD_CIA",
+            "CD_MONEDA",
+            "NU_ASIENTO"
+          ],
+          "queries": [
+            "Q_ASIENTOS"
+          ],
+          "groups": [
+            "G_ASIENTOS",
+            "G_MOVIMIENTOS"
+          ],
+          "data_links": [],
+          "formula_columns": [],
+          "summary_columns": [
+            "SUM_MT_DEBE",
+            "SUM_MT_HABER"
+          ],
+          "report_triggers": [
+            "BEFORE PARAMETER FORM",
+            "AFTER PARAMETER FORM",
+            "BEFORE REPORT",
+            "BETWEEN PAGES",
+            "AFTER REPORT"
+          ],
+          "program_units": [
+            "BEFOREREPORT"
+          ],
+          "layout_complexity": "low_visual_medium_functional",
+          "layout_notes": "Layout tabular simple y ordenado, con cabecera de asiento, grilla de movimientos y totales finales. No se observan bloques visuales complejos, matrices especiales ni dependencia fuerte del layout para la lógica del reporte."
+        },
+        "qa_impact": "El principal riesgo está en la consistencia contable: validación de totales Debe y Haber, control de integridad del detalle por línea, verificación del orden de movimientos por BAMT_NU_LINEA y correspondencia exacta entre cabecera y detalle del mismo asiento.",
+        "recommended_action": [
+          "Migrar la query principal con sintaxis ANSI manteniendo la lógica de joins y filtros por compañía, moneda y número de asiento.",
+          "Separar claramente en el modelo la cabecera del asiento, el detalle de movimientos y los totales finales.",
+          "Mantener la auditoría del BeforeReport desacoplada del render del reporte migrado.",
+          "Validar en QA el cierre exacto de Debe y Haber y el orden correcto de las líneas del asiento.",
+          "Confirmar que la salida final replique fielmente el asiento original tanto en valores como en estructura."
+        ],
+        "assumptions": [
+          "No se detectaron Formula Columns relevantes ni lógica funcional embebida adicional en las capturas provistas.",
+          "No se observan Format Triggers específicos ni secciones visuales complejas.",
+          "La query única resuelve tanto la cabecera como el detalle del reporte."
+        ],
+        "executive_justification": "CONR50210 presenta una estructura técnica bastante controlada: una sola query, parámetros claros, layout simple y totales visibles. No hay señales de lógica funcional intrincada ni de fórmulas que alteren filtros o clasificación. Sin embargo, se mantiene en complejidad media porque el dominio contable exige una validación más estricta de totales, correspondencia entre cabecera y detalle y exactitud del asiento impreso."
+      },
+      "migration_assets_detected": {
+        "has_queries": true,
+        "has_formulas": false,
+        "has_layout_model": true,
+        "has_program_units": true,
+        "has_triggers": true
+      },
+      "future_migration_notes": {
+        "keep_for_migration": true,
+        "priority": "medium",
+        "notes": [
+          "La query única puede dividirse lógicamente entre cabecera y detalle para mejorar claridad del modelo migrado.",
+          "Conviene convertir los joins antiguos a sintaxis ANSI sin alterar la cardinalidad.",
+          "El orden por BAMT_NU_LINEA debe preservarse exactamente en la salida final.",
+          "La auditoría del BeforeReport debe tratarse como lógica transversal y no bloquear el render del reporte.",
+          "Verificar si el total Debe y Haber debe además cumplir una igualdad contable estricta en todos los casos."
+        ]
+      },
+      "traceability": {
+        "source_inputs": {
+          "images_received": 4,
+          "queries_received": 1,
+          "formula_code_received": 1,
+          "layout_received": 1
+        },
+        "generated_at": "2026-04-05",
+        "status": "quoted"
+      }
+    }
+  },
+  {
+    "id": "trm_1775427704508_12",
+    "title": "CONR30524",
+    "category": "MIGRACION",
+    "priority": "ALTA",
+    "completed": false,
+    "metadata": {
+      "log_version": "1.0",
+      "agent": "ChatGPT",
+      "consumer": "MarTwin",
+      "operation_type": "report_quotation",
+      "project": {
+        "client": "Zurich",
+        "vendor": "Squad Alpha",
+        "phase": "Fase 2",
+        "source_technology": "Oracle Reports RDF",
+        "target_technology": "HTML/JS report engine"
+      },
+      "report": {
+        "name": "CONR30524",
+        "file_name": "CONR30524.rdf",
+        "module": "Contabilidad / Cobranzas",
+        "category": "report"
+      },
+      "quotation": {
+        "complexity": "ALTA",
+        "hours": {
+          "development": 17.2,
+          "qa": 10.1,
+          "buffer": 2.7,
+          "total": 30
+        },
+        "confidence": "media"
+      },
+      "analysis": {
+        "context": "Registro de cobranzas con detalle de operaciones por ramo y moneda, totales acumulados por ramo y total por moneda, más cabecera institucional y parametrización por NU_SECUENCIA.",
+        "technical_findings": {
+          "user_parameters": [
+            "NU_SECUENCIA"
+          ],
+          "queries": [
+            "COBRANZA",
+            "DATOS_COMPANIA",
+            "Q_2",
+            "Q_4"
+          ],
+          "groups": [
+            "DATOS_COMPANIA",
+            "G_2",
+            "RAMO",
+            "G_1",
+            "G_4"
+          ],
+          "data_links": [],
+          "formula_columns": [
+            "CD_RAMO",
+            "FECHA_DESDE",
+            "FECHA_HASTA"
+          ],
+          "summary_columns": [
+            "CREDITO_MONEDA",
+            "DEBITO_MONEDA",
+            "CREDITO_RAMO",
+            "DEBITO_RAMO"
+          ],
+          "report_triggers": [
+            "BEFORE REPORT"
+          ],
+          "program_units": [
+            "BEFOREREPORT",
+            "CAMBIO_FORMATO",
+            "CCREDITOFORMULA",
+            "CCREDITO_MONEDAFORMULA",
+            "CCREDITO_RAMOFORMULA",
+            "CDEBITOFORMULA",
+            "CDEBITO_MONEDAFORMULA",
+            "CDEBITO_RAMOFORMULA",
+            "CD_RAMOFORMULA",
+            "CREDITOFORMULA",
+            "CSALDOFORMULA",
+            "CSALDO_MONEDAFORMULA",
+            "CSALDO_RAMOFORMULA",
+            "DESC_RAMOFORMULA",
+            "DEVITOFORMULA",
+            "FECHA_DESDEFORMULA",
+            "FECHA_HASTAFORMULA",
+            "F_7FORMATTRIGGER",
+            "SALDOFORMULA",
+            "SALDO_MONEDAFORMULA",
+            "SALDO_RAMOFORMULA",
+            "TEXTO_CD_POSTALFORMULA",
+            "TEXTO_DIRECCIONFORMULA"
+          ],
+          "layout_complexity": "MEDIA",
+          "layout_notes": "Layout tabular compacto con cabecera institucional, bloque principal por ramo, detalle de cobranzas, subtotal por ramo y subtotal por moneda. Requiere replicar exactamente formato numérico y orden visual de columnas."
+        },
+        "qa_impact": "Alto. Hay riesgo en los acumulados por nivel, en el signo funcional de débito/crédito según operación 2006/2008, en la descripción de ramo, en el formato numérico textual y en la lógica de dirección/código postal dependiente de la fecha del proceso.",
+        "recommended_action": [
+          "Migrar la lógica de formato numérico a una utilidad común del motor destino",
+          "Resolver en backend o SQL la obtención de FECHA_DESDE, FECHA_HASTA y CD_RAMO para reducir dependencia de fórmulas Oracle",
+          "Validar subtotales por RAMO y por MONEDA contra salida original",
+          "Reemplazar auditoria_report por logging nativo del nuevo motor",
+          "Controlar específicamente el caso especial de ramo 50 y el union all de la query COBRANZA"
+        ],
+        "assumptions": [
+          "La salida final mantiene estructura tabular sin cambios funcionales",
+          "El formato monetario con coma decimal y punto de miles debe conservarse tal como Oracle Reports",
+          "La regla de domicilio/código postal cambia según CAOS_FE_A y debe mantenerse en migración",
+          "Las operaciones 2006 y 2008 representan respectivamente crédito y débito en este reporte"
+        ],
+        "executive_justification": "Aunque el layout es visualmente simple, la complejidad sube por la cantidad de fórmulas auxiliares, la doble agregación por ramo y moneda, el formateo numérico textual y las reglas condicionales de cabecera/dirección. Eso impacta fuerte en QA comparativo."
+      },
+      "migration_assets_detected": {
+        "has_queries": true,
+        "has_formulas": true,
+        "has_layout_model": true,
+        "has_program_units": true,
+        "has_triggers": true
+      },
+      "future_migration_notes": {
+        "keep_for_migration": true,
+        "priority": "high",
+        "notes": [
+          "Replicar union all especial para ramo 50",
+          "Preservar CAMBIO_FORMATO y su equivalencia exacta",
+          "Validar formulas de saldo porque hoy suman débito y crédito según lógica heredada",
+          "Mantener TEXTO_CD_POSTALFORMULA y TEXTO_DIRECCIONFORMULA con corte de fecha 01/04/2025"
+        ]
+      },
+      "traceability": {
+        "source_inputs": {
+          "images_received": 4,
+          "queries_received": 4,
+          "formula_code_received": 23,
+          "layout_received": 1
+        },
+        "generated_at": "2026-04-05T00:00:00Z",
+        "status": "quoted"
+      }
+    }
+  },
+  {
+    "id": "trm_1775427704510_13",
+    "title": "CONR50210",
+    "category": "MIGRACION",
+    "priority": "NORMAL",
+    "completed": false,
+    "metadata": {
+      "log_version": "1.1",
+      "agent": "Gemini",
+      "consumer": "MarTwin",
+      "operation_type": "report_quotation",
+      "project": {
+        "client": "Zurich",
+        "vendor": "Squad Alpha",
+        "phase": "Fase 2",
+        "source_technology": "Oracle Reports RDF",
+        "target_technology": "HTML/JS report engine"
+      },
+      "report": {
+        "name": "CONR50210",
+        "file_name": "CONR50210.rdf",
+        "module": "Contabilidad / Listados Simples",
+        "category": "report"
+      },
+      "quotation": {
+        "complexity": "BAJA",
+        "hours": {
+          "development": 10,
+          "qa": 5,
+          "buffer": 2,
+          "total": 17
+        },
+        "confidence": "alta"
+      },
+      "analysis": {
+        "context": "Reporte de parámetros contables. Lógica lineal sin cálculos de saldos históricos ni joins complejos.",
+        "technical_findings": {
+          "formula_columns": [
+            "usuario",
+            "fecha"
+          ],
+          "layout_complexity": "BAJA",
+          "layout_notes": "Grilla estándar sin rupturas de página complejas."
+        },
+        "executive_justification": "Mantenemos la estimación de la Squad de 17h para procesos de baja complejidad operativa."
+      }
+    }
+  },
+  {
+    "id": "trm_1775427704513_14",
+    "title": "SINR44010",
+    "category": "MIGRACION",
+    "priority": "ALTA",
+    "completed": false,
+    "metadata": {
+      "log_version": "1.0",
+      "agent": "ChatGPT",
+      "consumer": "MarTwin",
+      "operation_type": "report_quotation",
+      "project": {
+        "client": "Zurich",
+        "vendor": "Squad Alpha",
+        "phase": "Fase 2",
+        "source_technology": "Oracle Reports RDF",
+        "target_technology": "HTML/JS report engine"
+      },
+      "report": {
+        "name": "SINR44010",
+        "file_name": "SINR44010.rdf",
+        "module": "Siniestros/Cartas",
+        "category": "report"
+      },
+      "quotation": {
+        "complexity": "Media",
+        "hours": {
+          "development": 18,
+          "qa": 16,
+          "buffer": 3,
+          "total": 37
+        },
+        "confidence": "media_alta"
+      },
+      "analysis": {
+        "context": "Reporte orientado a la impresión de una carta generada a partir de un número de carta (P_NU_CARTA). Recupera datos del documento, firmante, asegurado, siniestro, póliza, certificado, vigencias, domicilio y datos de compañía. La salida es una carta formal con estructura fija y contenido variable.",
+        "technical_findings": {
+          "user_parameters": [
+            "P_NU_CARTA"
+          ],
+          "queries": [
+            "Q_CARTA"
+          ],
+          "groups": [
+            "G_CTCG_NU_CARTA"
+          ],
+          "data_links": [],
+          "formula_columns": [],
+          "summary_columns": [],
+          "report_triggers": [
+            "BEFORE PARAMETER FORM",
+            "AFTER PARAMETER FORM",
+            "BEFORE REPORT",
+            "BETWEEN PAGES",
+            "AFTER REPORT"
+          ],
+          "program_units": [
+            "BEFOREREPORT"
+          ],
+          "layout_complexity": "medium_visual_low_functional",
+          "layout_notes": "Composición documental fija con múltiples bloques: encabezado de referencia/fecha/número, bloques paralelos de compañía y asegurado, repetición de bloques de dirección, cuerpo textual amplio, bloque de firma y referencias a número de carta y siniestro. La complejidad principal está en la maquetación documental y la fidelidad visual, no en la lógica de datos."
+        },
+        "qa_impact": "El riesgo principal está en la fidelidad visual del documento: correcta ubicación de cada campo en su bloque, reproducción exacta del cuerpo textual, saltos, espaciados y alineación general, además de la consistencia entre datos del asegurado, compañía, carta y siniestro.",
+        "recommended_action": [
+          "Migrar la query principal prácticamente 1 a 1, manteniendo el filtro por número de carta.",
+          "Separar el modelo en bloques documentales claros: encabezado, compañía, asegurado, cuerpo, firma y referencias.",
+          "Replicar el layout como documento fijo, evitando tratarlo como una tabla genérica.",
+          "Mantener la auditoría del BeforeReport desacoplada del render del reporte migrado.",
+          "Ejecutar QA visual contra el original con foco en posiciones, espaciados, bloque de texto, firma e integridad de campos."
+        ],
+        "assumptions": [
+          "No se detectaron Formula Columns relevantes ni lógica funcional embebida adicional en las capturas provistas.",
+          "No se observan Summary Columns, Data Links ni cálculos numéricos sensibles.",
+          "La query única sobre CART_CARTAS_GENERADAS resuelve la totalidad del contenido variable del documento."
+        ],
+        "executive_justification": "SINR44010 tiene una lógica de datos sencilla, porque depende de una sola query y un único parámetro. Sin embargo, no conviene clasificarlo como baja complejidad porque el valor del reporte está en su presentación documental: bloques, cuerpo de carta, firma y disposición visual fija. La carga real está en reproducir correctamente el documento final y validarlo contra el original, más que en resolver lógica SQL o cálculos."
+      },
+      "migration_assets_detected": {
+        "has_queries": true,
+        "has_formulas": false,
+        "has_layout_model": true,
+        "has_program_units": true,
+        "has_triggers": true
+      },
+      "future_migration_notes": {
+        "keep_for_migration": true,
+        "priority": "medium",
+        "notes": [
+          "La query única puede mantenerse casi sin cambios funcionales durante la migración.",
+          "Conviene modelar el documento en bloques reutilizables para facilitar ajustes visuales.",
+          "El cuerpo textual amplio debe validarse con cuidado por posibles diferencias de render entre Oracle Reports y el motor HTML.",
+          "La auditoría del BeforeReport debe tratarse como lógica transversal y no bloquear la salida del documento.",
+          "Es clave conservar la estructura visual tipo carta y no degradarla a un layout tabular."
+        ]
+      },
+      "traceability": {
+        "source_inputs": {
+          "images_received": 7,
+          "queries_received": 1,
+          "formula_code_received": 1,
+          "layout_received": 3
+        },
+        "generated_at": "2026-04-05",
+        "status": "quoted"
+      }
+    }
+  },
+  {
+    "id": "trm_1775427704517_15",
+    "title": "SINR44020",
+    "category": "MIGRACION",
+    "priority": "ALTA",
+    "completed": false,
+    "metadata": {
+      "log_version": "1.0",
+      "agent": "ChatGPT",
+      "consumer": "MarTwin",
+      "operation_type": "report_quotation",
+      "project": {
+        "client": "Zurich",
+        "vendor": "Squad Alpha",
+        "phase": "Fase 2",
+        "source_technology": "Oracle Reports RDF",
+        "target_technology": "HTML/JS report engine"
+      },
+      "report": {
+        "name": "SINR44020",
+        "file_name": "SINR44020.rdf",
+        "module": "Siniestros/Cartas",
+        "category": "report"
+      },
+      "quotation": {
+        "complexity": "Media",
+        "hours": {
+          "development": 17,
+          "qa": 15,
+          "buffer": 3,
+          "total": 35
+        },
+        "confidence": "media"
+      },
+      "analysis": {
+        "context": "Reporte orientado a la impresión de una carta o documento generado a partir de un número de carta. Recupera datos de carta, firmante, asegurado, siniestro, póliza, vigencias, texto del documento y además incorpora CTCG_CD_SUCURSAL, con una fórmula adicional asociada a la descripción de sucursal. La salida es una pieza documental breve, con encabezado, cuerpo principal de texto y bloque de firma o cierre.",
+        "technical_findings": {
+          "user_parameters": [
+            "P_NU_CARTA"
+          ],
+          "queries": [
+            "Q_CARTA"
+          ],
+          "groups": [
+            "G_CTCG_NU_CARTA"
+          ],
+          "data_links": [],
+          "formula_columns": [
+            "CF_DE_SUCURSAL"
+          ],
+          "summary_columns": [],
+          "report_triggers": [
+            "BEFORE PARAMETER FORM",
+            "AFTER PARAMETER FORM",
+            "BEFORE REPORT",
+            "BETWEEN PAGES",
+            "AFTER REPORT"
+          ],
+          "program_units": [
+            "BEFOREREPORT",
+            "CF_DE_SUCURSALFORMULA"
+          ],
+          "layout_complexity": "medium_visual_low_functional",
+          "layout_notes": "Documento de composición fija y relativamente simple: campo superior de fecha, referencia breve, bloque central de texto grande y firma o cierre al pie. No se observan dobles bloques complejos como en otros reportes de cartas, pero sí sensibilidad visual propia de una salida documental."
+        },
+        "qa_impact": "El riesgo principal está en la fidelidad visual del documento final, la correcta inyección del texto principal, la posición y espaciado del bloque documental, la correcta resolución de la sucursal derivada por fórmula, y la consistencia entre número de carta, fecha, texto y firma o cierre.",
+        "recommended_action": [
+          "Migrar la query principal casi 1 a 1, manteniendo el filtro por número de carta.",
+          "Resolver la lógica de CF_DE_SUCURSAL de forma explícita y desacoplada del layout.",
+          "Modelar el documento por bloques: encabezado, referencia, cuerpo y cierre o firma.",
+          "Mantener la auditoría del BeforeReport fuera de la lógica de render del reporte migrado.",
+          "Ejecutar QA visual contra el original con foco en texto completo, posiciones, espaciados, firma y datos de sucursal."
+        ],
+        "assumptions": [
+          "La query compartida aparece recortada en el WHERE, pero el patrón general es análogo al de otros reportes de cartas del lote.",
+          "No se observan Summary Columns ni lógica de totales.",
+          "La principal complejidad está en el documento final y en la fórmula de sucursal, no en el SQL."
+        ],
+        "executive_justification": "SINR44020 tiene una base de datos simple, una sola query y una composición documental más liviana que otros reportes de cartas del mismo lote. Sin embargo, no debe clasificarse como baja porque conserva sensibilidad de layout, manejo de texto y una fórmula adicional de sucursal que agrega una pequeña capa de lógica funcional. La mayor carga está en reproducir fielmente el documento y validarlo visualmente."
+      },
+      "migration_assets_detected": {
+        "has_queries": true,
+        "has_formulas": true,
+        "has_layout_model": true,
+        "has_program_units": true,
+        "has_triggers": true
+      },
+      "future_migration_notes": {
+        "keep_for_migration": true,
+        "priority": "medium",
+        "notes": [
+          "La query principal puede mantenerse muy cercana al original durante la migración.",
+          "La fórmula CF_DE_SUCURSAL debe resolverse explícitamente en la capa de datos o transformación, no dejarse implícita.",
+          "Conviene modelar el documento como una plantilla fija con bloques bien definidos.",
+          "El bloque central de texto debe probarse con cuidado por diferencias de render entre Oracle Reports y HTML.",
+          "La auditoría del BeforeReport debe tratarse como lógica transversal y no bloquear la salida del documento."
+        ]
+      },
+      "traceability": {
+        "source_inputs": {
+          "images_received": 5,
+          "queries_received": 1,
+          "formula_code_received": 1,
+          "layout_received": 1
+        },
+        "generated_at": "2026-04-05",
+        "status": "quoted"
+      }
+    }
+  }
+]

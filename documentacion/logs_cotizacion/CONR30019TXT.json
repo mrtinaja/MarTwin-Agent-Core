@@ -1,0 +1,75 @@
+{
+  "log_version": "1.1",
+  "agent": "Gemini",
+  "consumer": "MarTwin",
+  "operation_type": "report_quotation",
+  "project": {
+    "client": "Zurich",
+    "vendor": "Squad Alpha",
+    "phase": "Fase 2",
+    "source_technology": "Oracle Reports RDF",
+    "target_technology": "HTML/JS report engine"
+  },
+  "report": {
+    "name": "CONR30019TXT",
+    "file_name": "CONR30019TXT.rdf",
+    "module": "Contabilidad / Mayores Detallados",
+    "category": "report"
+  },
+  "quotation": {
+    "complexity": "CRITICA",
+    "hours": {
+      "development": 26.0,
+      "qa": 18.5,
+      "buffer": 5.5,
+      "total": 50.0
+    },
+    "confidence": "media_alta"
+  },
+  "analysis": {
+    "context": "Reporte de movimientos contables con cálculo de saldo anterior dinámico y resolución de auxiliares multi-entidad.",
+    "technical_findings": {
+      "user_parameters": ["CD_COMPANIA", "CD_MONEDA", "DIVISION", "GRUPO", "SUB_GRUPO", "CUENTA", "FE_A", "FE_B"],
+      "queries": ["Q_MOVIMIENTOS"],
+      "groups": ["G_MES", "G_DIA"],
+      "formula_columns": [
+        "cd_cuenta", "de_auxiliar", "saldo_mes_ant", "debe_sin_act", "haber_sin_act", 
+        "debe_sin_verif", "haber_sin_verif", "neto_dia", "total_mes", "total_general",
+        "tot_sin_act", "tot_sin_verif", "nm_usuario", "unidad_adm", "usuario"
+      ],
+      "summary_columns": ["MES_DEBE", "MES_HABER", "TOTAL_GENERAL", "TOT_DEBE_ACT", "TOT_HABER_ACT"],
+      "report_triggers": ["BEFORE REPORT"],
+      "program_units": ["saldo_mes_antFormula", "de_auxiliarFormula", "cd_cuentaFormula"],
+      "layout_complexity": "ALTA",
+      "layout_notes": "Control de saldos por página y acumulados por ruptura de fecha."
+    },
+    "qa_impact": "Extremo riesgo en la fórmula de saldo anterior; requiere testing de regresión de 12 meses para validar la suma acumulada.",
+    "recommended_action": [
+      "Refactorizar saldo_mes_antFormula en una función SQL unificada para mejorar performance",
+      "Crear un mock de datos para los 6 tipos de auxiliares posibles",
+      "Implementar validación de auditoría para concordancia con gbll10001"
+    ],
+    "assumptions": [
+      "El acceso a CONT_SALDOS_CONTABLES_ANUALES tiene índices por cuenta y año",
+      "La lógica de saldos acumulados es la única fuente de verdad para el balance del reporte"
+    ],
+    "executive_justification": "La inclusión de la lógica de saldos anteriores y la resolución de auxiliares eleva el tiempo de desarrollo y QA sustancialmente. Es un reporte 'Core' que no admite errores de redondeo o lógica contable."
+  },
+  "migration_assets_detected": {
+    "has_queries": true,
+    "has_formulas": true,
+    "has_layout_model": true,
+    "has_program_units": true,
+    "has_triggers": true
+  },
+  "traceability": {
+    "source_inputs": {
+      "images_received": 6,
+      "queries_received": 1,
+      "formula_code_received": 16,
+      "layout_received": 1
+    },
+    "generated_at": "2026-04-05T15:10:00Z",
+    "status": "quoted"
+  }
+}
