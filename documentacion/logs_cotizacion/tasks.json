@@ -142,7 +142,8 @@
         "generated_at": "2026-04-05",
         "status": "quoted"
       }
-    }
+    },
+    "status": "backlog"
   },
   {
     "id": "trm_1775427704426_1",
@@ -308,7 +309,8 @@
         "generated_at": "2026-04-05",
         "status": "quoted"
       }
-    }
+    },
+    "status": "backlog"
   },
   {
     "id": "trm_1775427704436_2",

@@ -1,40 +1,34 @@
-// @ts-ignore
-import "@/app/globals.css";
-import { NextAuthProvider } from "./providers";
-import Sidebar from "../src/components/Sidebar"; 
+import './globals.css'
+import { Inter } from 'next/font/google'
+import Sidebar from '@/components/Sidebar' 
+import { NextAuthProvider } from './providers'
+
+const inter = Inter({ subsets: ['latin'] })
 
 export const metadata = {
-  title: "MarTwin - Squad & Zurich Agent",
-  description: "Sistema de gestión inteligente",
-};
+  title: 'MarTwin Agent Core',
+  description: 'Zurich Santander Neural Interface',
+}
 
 export default function RootLayout({
   children,
 }: {
-  children: React.ReactNode;
+  children: React.ReactNode
 }) {
   return (
-    <html lang="es" className="dark">
-      {/* overflow-hidden en el body evita que toda la página rebote, el scroll lo maneja el main */}
-      <body className="bg-black text-white flex h-screen overflow-hidden antialiased font-sans">
+    <html lang="es" suppressHydrationWarning>
+      <body className={`${inter.className} bg-black text-white overflow-x-hidden`}>
         <NextAuthProvider>
-          
-          <Sidebar /> 
-          
-          {/* flex-1 hace que tome todo el ancho restante del sidebar */}
-          <main className="flex-1 overflow-y-auto bg-[#020202] relative scrollbar-hide">
-            
-            {/* Gradiente de fondo Zurich: lo moví un poco para que no tape el contenido */}
-            <div className="fixed top-[-10%] right-[-10%] w-[600px] h-[600px] bg-[#08646E]/10 blur-[150px] pointer-events-none z-0" />
-            
-            {/* Contenedor de contenido: z-10 para estar por encima del gradiente */}
-            <div className="relative z-10 min-h-full">
+          <div className="flex min-h-screen">
+            <aside className="w-64 flex-shrink-0 border-r border-[#08646E]/20 bg-[#020202] sticky top-0 h-screen">
+              <Sidebar />
+            </aside>
+            <main className="flex-1 bg-[#020202]">
               {children}
-            </div>
-          </main>
-
+            </main>
+          </div>
         </NextAuthProvider>
       </body>
     </html>
-  );
+  )
 }

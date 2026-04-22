@@ -1,62 +1,125 @@
 import { OpenAIStream, StreamingTextResponse } from 'ai';
 import OpenAI from 'openai';
-import { GoogleGenerativeAI } from "@google/generative-ai";
 import fs from 'fs';
 import path from 'path';
 
+// --- CONFIGURACIÓN DE INSTANCIA ---
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-const genAI = new GoogleGenerativeAI(process.env.GOOGLE_GENERATIVE_AI_API_KEY!);
+
+// Fuerza a que la ruta no use caché de Next.js y sea siempre dinámica
+export const dynamic = 'force-dynamic';
+
+// --- OPTIMIZACIÓN: CACHÉ EN MEMORIA (Fuera del handler) ---
+let masterPromptCache: { content: string; timestamp: number } | null = null;
+const CACHE_TTL = 1000 * 60 * 15; // Refrescar cada 15 minutos
 
 export async function POST(req: Request) {
   try {
-    const { messages } = await req.json();
+    const { messages, data } = await req.json();
+    const attachments = data?.manualAttachments || [];
+    const lastUserMessage = messages[messages.length - 1].content.toUpperCase();
 
-    // 1. LECTURA DE CONTEXTO (Optimizada)
     const root = process.cwd();
-    const docsPath = path.join(root, 'documentacion');
-    let context = "";
-
-    if (fs.existsSync(docsPath)) {
-      const files = fs.readdirSync(docsPath).filter(f => f.endsWith('.md') || f.endsWith('.json'));
-      context = files.map(f => {
-        const content = fs.readFileSync(path.join(docsPath, f), 'utf8');
-        // Solo mandamos los primeros 4000 caracteres de cada archivo para no explotar el token
-        return `[FILE: ${f}]\n${content.substring(0, 4000)}`;
-      }).join('\n\n');
-    }
-
-    // 2. LÓGICA DE SWITCHING (Si el contexto es muy largo, vamos a Gemini)
-    const approximateTokens = context.length / 4; // Estimación rápida
+    const docPath = path.join(root, 'documentacion');
     
-    if (approximateTokens > 12000) {
-      console.log("🚀 CONTEXTO GRANDE: Switcheando a Gemini 1.5 Flash...");
-      
-      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-      const prompt = `Eres MarTwin Agent Core. Contexto de ingeniería:\n${context}\n\nPregunta: ${messages[messages.length - 1].content}`;
-      
-      const result = await model.generateContent(prompt);
-      const response = await result.response;
-      const text = response.text();
+    // 1. OBTENER REGLAS MAESTRAS (CON CACHÉ)
+    let masterRules = "";
+    const now = Date.now();
 
-      // Devolvemos una respuesta compatible con el stream de useChat
-      return new Response(text);
+    if (masterPromptCache && (now - masterPromptCache.timestamp < CACHE_TTL)) {
+      masterRules = masterPromptCache.content;
+    } else {
+      const htmlPromptPath = path.join(docPath, 'prompts', '_HTML.md');
+      if (fs.existsSync(htmlPromptPath)) {
+        masterRules = fs.readFileSync(htmlPromptPath, 'utf8');
+        masterPromptCache = { content: masterRules, timestamp: now };
+        console.log("⚡ [SYSTEM] Prompt maestro sincronizado desde disco.");
+      }
     }
 
-    // 3. SI EL CONTEXTO ES MANEJABLE, SEGUIMOS CON OPENAI (Stream)
+    // 2. INYECCIÓN DE CONTEXTO SELECTIVO (Ahorro de Tokens y Velocidad)
+    let contextualData = "";
+    
+    // Solo escanea si detecta keywords de reportes o datos
+    const needsContext = /CONR|DATA|INFO|QUOT|TEST|QUERY/.test(lastUserMessage);
+
+    if (needsContext) {
+      const targetFolders = ['desarrollo', 'cotizaciones', 'tests'];
+      
+      targetFolders.forEach(subDir => {
+        const fullSubDir = path.join(docPath, subDir);
+        if (fs.existsSync(fullSubDir)) {
+          const files = fs.readdirSync(fullSubDir);
+          files.forEach(file => {
+            const fileNameOnly = file.split('.')[0].toUpperCase();
+            // Si el mensaje menciona el nombre del archivo, lo inyectamos
+            if (lastUserMessage.includes(fileNameOnly)) {
+              const content = fs.readFileSync(path.join(fullSubDir, file), 'utf8');
+              contextualData += `\n--- SOURCE_FILE: ${file} ---\n${content}\n`;
+              console.log(`🎯 Contexto inyectado: ${file}`);
+            }
+          });
+        }
+      });
+    }
+
+    // 3. CONSTRUCCIÓN DEL PROMPT DE SISTEMA
+    const systemPrompt = `Eres MarTwin Agent Core v5.0 // NEURAL_INTERFACE.
+    Operas bajo protocolos de Zurich Santander.
+    
+    COLORES_CORPORATIVOS: Azul Petróleo (#08646e), Dorado Ocre (#e4b32b).
+    
+    REGLAS_ESTILO_INTERFAZ:
+    ${masterRules}
+
+    DATOS_LOCALES_INYECTADOS:
+    ${contextualData || "No se requiere contexto adicional para esta consulta."}
+
+    PROTOCOLO:
+    - Respuestas quirúrgicas, técnicas y de alta eficiencia.
+    - Usa siempre los colores #08646e y #e4b32b en sugerencias de UI.
+    - Si el contexto inyectado contiene SQL, analízalo con rigor de DBA Oracle.`;
+
+    // 4. PROCESAMIENTO DE IMÁGENES (Si existen)
+    const imageFiles = attachments.filter((a: any) => a.contentType.startsWith('image/'));
+    
+    const chatMessages = [
+      { role: 'system', content: systemPrompt },
+      ...messages.map((m: any) => ({ role: m.role, content: m.content }))
+    ];
+
+    if (imageFiles.length > 0) {
+      chatMessages.push({
+        role: 'user',
+        content: [
+          { type: 'text', text: "Analiza esta captura usando los protocolos inyectados." },
+          ...imageFiles.map((img: any) => ({
+            type: 'image_url',
+            image_url: { url: `data:${img.contentType};base64,${img.base64}` }
+          }))
+        ]
+      } as any);
+    }
+
+   // 5. EJECUCIÓN CON STREAMING
     const response = await openai.chat.completions.create({
-      model: 'gpt-3.5-turbo',
+      model: 'gpt-4o',
       stream: true,
-      messages: [
-        { role: 'system', content: `Eres MarTwin Agent Core. Contexto:\n${context}` },
-        ...messages
-      ],
+      messages: chatMessages as any,
+      temperature: 0.2,
     });
 
-    const stream = OpenAIStream(response as any);
+    // Forzamos el tipo a 'any' para evitar la colisión con los tipos de Azure
+    const stream = OpenAIStream(response as any); 
     return new StreamingTextResponse(stream);
+    // OpenAIStream transforma la respuesta en un flujo que useChat entiende
+   
 
   } catch (error: any) {
-    console.error("🔥 ERROR EN CHAT:", error.message);
-    return new Response(JSON.stringify({ error: error.message }), { status: 500 });
+    console.error("🔥 [CRITICAL_ERROR]:", error.message);
+    return new Response(JSON.stringify({ 
+      error: "Neural Link Interrupted", 
+      details: error.message 
+    }), { status: 500 });
   }
 }

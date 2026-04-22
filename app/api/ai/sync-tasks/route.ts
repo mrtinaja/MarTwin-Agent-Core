@@ -6,83 +6,93 @@ import fs from 'fs';
 export async function POST() {
   try {
     const root = process.cwd();
-    const logsDir = path.join(root, 'app', 'documentacion', 'logs_cotizacion');
-    const tasksFilePath = path.join(root, 'app', 'documentacion', 'tasks.json');
+    
+    // 🚩 RUTA CORREGIDA: Apuntamos a la raíz del proyecto, no adentro de /app
+    const logsDir = path.join(root, 'documentacion', 'logs_cotizacion');
+    const tasksFilePath = path.join(root, 'documentacion', 'tasks.json');
 
     console.log("-----------------------------------------");
     console.log("🚀 AGENT_SYNC_PROTOCOL_V5_AIR_CALIBRATION");
-    console.log("📂 ESCANEANDO:", logsDir);
+    console.log("📂 ESCANEANDO DIRECTORIO:", logsDir);
 
     if (!fs.existsSync(logsDir)) {
+      console.error("❌ ERROR: No se encuentra la carpeta de logs en:", logsDir);
       return NextResponse.json({ error: "Directorio de logs no encontrado" }, { status: 404 });
     }
 
+    // Leemos TODOS los archivos de la carpeta
     const files = await readdir(logsDir);
+    
+    // Filtramos solo los JSON (sin .slice, queremos los 16)
     const jsonFiles = files.filter(f => f.toLowerCase().endsWith('.json'));
     
-    // Reconstrucción Limpia: Generamos la lista de cero para evitar duplicados o errores de nombre
+    console.log(`📊 ARCHIVOS DETECTADOS: ${jsonFiles.length}`);
+
     const freshTasks: any[] = [];
     let processedCount = 0;
 
     for (const file of jsonFiles) {
       try {
-        const content = await readFile(path.join(logsDir, file), 'utf8');
+        const filePath = path.join(logsDir, file);
+        const content = await readFile(filePath, 'utf8');
+        
         if (!content.trim()) continue;
 
         const logData = JSON.parse(content);
         
-        // Priorizar el nombre que viene dentro del JSON
+        // Extraemos data del log
         const reportName = logData.report?.name || file.replace('.json', '');
         const totalHours = logData.quotation?.hours?.total || 0;
 
-        // --- LÓGICA DE SEMÁFORO CALIBRADA PARA DAR "AIRE" ---
+        // --- LÓGICA DE SEMÁFORO CALIBRADA ---
         let priorityValue: "NORMAL" | "ALTA" | "CRITICA" = "NORMAL";
 
         if (totalHours >= 55) {
-          // 🔴 CRITICA: Solo casos extremos (Caja, Mayores críticos con mucha inflación)
           priorityValue = "CRITICA"; 
         } 
         else if (totalHours >= 28) {
-          // 🟡 ALTA: Complejidad media/alta (Mayores detallados, procesos contables)
           priorityValue = "ALTA"; 
         } 
         else {
-          // 🟢 NORMAL: Complejidad baja/media (Libro Diario, Siniestros, Listados)
-          // Entran todos los de 17h a 27h para que el dashboard se vea "saludable"
           priorityValue = "NORMAL"; 
         }
 
         freshTasks.push({
-          id: `trm_${Date.now()}_${processedCount}`,
-          title: reportName,
-          category: "MIGRACION",
+          // Generamos ID único basado en el nombre y timestamp
+          id: `trm_${processedCount}_${Date.now()}`,
+          title: reportName.toUpperCase(),
+          category: logData.category || "MIGRACION",
           priority: priorityValue,
           completed: false,
           metadata: logData 
         });
 
         processedCount++;
-        console.log(`✅ PROCESADO: ${reportName} -> ${totalHours}h [${priorityValue}]`);
+        console.log(`✅ [${processedCount}/${jsonFiles.length}] PROCESADO: ${reportName}`);
 
       } catch (err) {
-        console.error(`❌ Error procesando archivo ${file}:`, err);
+        console.error(`❌ Error en archivo ${file}:`, err);
       }
     }
 
-    // Escritura final en el núcleo de datos
+    // 💾 GUARDADO FÍSICO
+    // Aseguramos que el directorio de destino exista
+    const tasksDir = path.dirname(tasksFilePath);
+    if (!fs.existsSync(tasksDir)) fs.mkdirSync(tasksDir, { recursive: true });
+
     await writeFile(tasksFilePath, JSON.stringify(freshTasks, null, 2), 'utf8');
     
-    console.log(`✨ SYNC FINALIZADA. Total en Dashboard: ${processedCount}`);
+    console.log(`✨ SYNC EXITOSA: ${processedCount} tareas inyectadas en tasks.json`);
     console.log("-----------------------------------------");
 
-    return NextResponse.json({ 
-      status: "OK", 
-      processed: processedCount,
-      timestamp: new Date().toISOString()
-    });
+    // 🚩 CLAVE: Devolvemos el ARRAY directamente para que el front lo muestre al toque
+    return NextResponse.json(freshTasks);
 
   } catch (error: any) {
-    console.error("🔥 FATAL_ERROR:", error.message);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error("🔥 FATAL_ERROR EN SYNC:", error.message);
+    return new Response(JSON.stringify({ error: error.message }), { 
+      status: 500, 
+      headers: { 'Content-Type': 'application/json' } 
+    });
   }
 }

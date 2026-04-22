@@ -4,26 +4,49 @@ import path from 'path';
 
 export async function POST(req: Request) {
   try {
-    const { title, content, type } = await req.json(); // 'cotizacion', 'migracion', 'test'
+    const { title, content, type } = await req.json();
     const root = process.cwd();
-    let targetPath = "";
-    let fileName = title.toUpperCase().replace(/\s+/g, '_');
 
-    switch (type) {
-      case 'cotizacion':
-        targetPath = path.join(root, 'documentacion', 'logs_cotizacion', `${fileName}.json`);
-        break;
-      case 'test':
-        targetPath = path.join(root, 'documentacion', 'test', `${fileName}.md`);
-        break;
-      default: // migracion
-        targetPath = path.join(root, 'documentacion', `${fileName}.md`);
+    // Normalizamos el tipo para evitar errores de mayúsculas o espacios
+    const normalizedType = type ? type.toLowerCase().trim() : "";
+    
+    let subFolder = "";
+    let extension = ".md";
+
+    // Mapeo ultra-seguro
+    if (normalizedType.includes('prompt')) {
+      subFolder = 'prompts';
+    } else if (normalizedType.includes('cotizacion')) {
+      subFolder = 'logs_cotizacion';
+      extension = ".json";
+    } else if (normalizedType.includes('test')) {
+      subFolder = 'test';
     }
 
-    fs.writeFileSync(targetPath, content, 'utf8');
-    return NextResponse.json({ success: true, path: targetPath });
+    // Construcción de la ruta
+    const targetDir = path.join(root, 'documentacion', subFolder);
+    const filePath = path.join(targetDir, `${title}${extension}`);
 
-  } catch (error) {
-    return NextResponse.json({ error: "Error al guardar" }, { status: 500 });
+    // LOG DE CONTROL (Mirá la terminal de VS Code al guardar)
+    console.log(`DEBUG_SAVE: Recibido Tipo "${type}" -> Guardando en "${subFolder}"`);
+
+    if (!fs.existsSync(targetDir)) {
+      fs.mkdirSync(targetDir, { recursive: true });
+    }
+
+    // Si existía una versión "suelta" en la raíz por error, la borramos para no confundir
+    const strayFile = path.join(root, 'documentacion', `${title}${extension}`);
+    if (subFolder !== "" && fs.existsSync(strayFile)) {
+      fs.unlinkSync(strayFile);
+      console.log(`🧹 Borrado archivo suelto: ${strayFile}`);
+    }
+
+    fs.writeFileSync(filePath, content, 'utf8');
+
+    return NextResponse.json({ success: true, savedAt: subFolder });
+
+  } catch (error: any) {
+    console.error("🔥 Error en Save:", error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

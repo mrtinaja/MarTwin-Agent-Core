@@ -4,44 +4,53 @@ import { NextResponse } from 'next/server';
 // @ts-ignore
 import { authOptions } from "@/lib/auth";
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(req: Request) {
   try {
     const session = await getServerSession(authOptions);
     const accessToken = (session as any)?.accessToken;
 
     if (!accessToken) {
-      console.log("⚠️ CALENDAR: No se encontró accessToken en la sesión");
+      console.log("⚠️ CALENDAR: No se encontró accessToken");
       return NextResponse.json({ events: [] }, { status: 401 });
     }
 
     const auth = new google.auth.OAuth2();
     auth.setCredentials({ access_token: accessToken });
+    
+    // Usamos la instancia específica para evitar cargar todo el SDK si es posible
     const calendar = google.calendar({ version: 'v3', auth });
 
-    // Traemos todos los calendarios
-    const calList = await calendar.calendarList.list();
-    const ids = calList.data.items?.map(c => c.id) || ['primary'];
-
     const now = new Date();
-    // Filtro amplio: desde principio de mes hasta fin del mes que viene
-    const start = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-    const end = new Date(now.getFullYear(), now.getMonth() + 2, 0).toISOString();
+    // Filtro: desde hoy hasta 30 días después para mayor velocidad
+    const start = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+    const end = new Date(now.getFullYear(), now.getMonth() + 1, now.getDate()).toISOString();
 
-    const promises = ids.map(id => 
-      calendar.events.list({
-        calendarId: id as string,
-        timeMin: start,
-        timeMax: end,
-        singleEvents: true,
-      }).catch(() => ({ data: { items: [] } }))
-    );
+    console.log("📅 Fetching primary calendar events...");
 
-    const results = await Promise.all(promises);
-    const allEvents = results.flatMap(r => r.data.items || []);
+    // OPTIMIZACIÓN CRÍTICA: Solo pedimos el calendario 'primary'
+    // Esto evita las múltiples peticiones que sumaban 22 segundos.
+    const response = await calendar.events.list({
+      calendarId: 'primary',
+      timeMin: start,
+      timeMax: end,
+      singleEvents: true,
+      orderBy: 'startTime',
+      maxResults: 20 // Suficiente para el contexto del agente
+    });
 
-    return NextResponse.json({ events: allEvents });
+    const events = response.data.items || [];
+    
+    return NextResponse.json({ 
+      events,
+      count: events.length 
+    });
+
   } catch (error: any) {
     console.error("❌ ERROR CALENDAR API:", error.message);
-    return NextResponse.json({ events: [], error: error.message }, { status: 500 });
+    // Si el error es de auth, podrías querer retornar 401
+    const status = error.code === 401 ? 401 : 500;
+    return NextResponse.json({ events: [], error: error.message }, { status });
   }
 }

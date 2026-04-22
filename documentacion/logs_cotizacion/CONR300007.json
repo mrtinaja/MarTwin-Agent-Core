@@ -1,0 +1,144 @@
+{
+  "log_version": "1.0",
+  "agent": "ChatGPT",
+  "consumer": "MarTwin",
+  "operation_type": "report_quotation",
+  "project": {
+    "client": "Zurich",
+    "vendor": "Squad Alpha",
+    "phase": "Fase 2",
+    "source_technology": "Oracle Reports RDF",
+    "target_technology": "HTML/JS report engine"
+  },
+  "report": {
+    "name": "CONR30007",
+    "file_name": "CONR30007.rdf",
+    "module": "Contabilidad/Movimientos",
+    "category": "report"
+  },
+  "quotation": {
+    "complexity": "Media",
+    "hours": {
+      "development": 16,
+      "qa": 9,
+      "buffer": 3,
+      "total": 28
+    },
+    "confidence": "media"
+  },
+  "analysis": {
+    "context": "Reporte de movimientos contables con salida tabular y cortes de control por mes y día. Filtra por una combinación amplia de parámetros contables y auxiliares, calcula saldo del mes anterior, total por día, total mensual y total general, e incluye distinción entre movimientos actualizados y verificados.",
+    "technical_findings": {
+      "user_parameters": [
+        "AUX_1",
+        "AUX_2",
+        "CD_COMPANIA",
+        "CD_MONEDA",
+        "CUENTA",
+        "DIVISION",
+        "FE_A",
+        "FE_B",
+        "GRUPO",
+        "IN_TP_ASIENTO",
+        "SUB_CUENTA_1",
+        "SUB_CUENTA_2",
+        "SUB_CUENTA_3",
+        "SUB_GRUPO"
+      ],
+      "queries": [
+        "Q_MOVIMIENTOS"
+      ],
+      "groups": [
+        "G_MES",
+        "G_DIA",
+        "G_MOVIMIENTOS"
+      ],
+      "data_links": [],
+      "formula_columns": [
+        "CD_CUENTA",
+        "NM_COMPANIA",
+        "NM_USUARIO",
+        "TOT_SIN_ACT",
+        "TOT_SIN_VERIF",
+        "UNIDAD_ADM",
+        "USUARIO",
+        "SALDO_MES_ANT",
+        "TOTAL_GENERAL",
+        "TOTAL_MES",
+        "DIA_MOV",
+        "DEBE_SIN_ACT",
+        "DEBE_SIN_VERIF",
+        "HABER_SIN_ACT",
+        "HABER_SIN_VERIF",
+        "NETO_DIA"
+      ],
+      "summary_columns": [
+        "MES_DEBE",
+        "MES_HABER",
+        "TOTAL_DIA",
+        "TOT_DEBE",
+        "TOT_DEBE_ACT",
+        "TOT_DEBE_VERIF",
+        "TOT_HABER",
+        "TOT_HABER_ACT",
+        "TOT_HABER_VERIF"
+      ],
+      "report_triggers": [
+        "BEFORE REPORT"
+      ],
+      "program_units": [
+        "BEFOREREPORT",
+        "CD_CUENTAFORMULA",
+        "NM_COMPANIAFORMULA",
+        "NM_USUARIOFORMULA",
+        "TOT_SIN_VERIFFORMULA",
+        "UNIDAD_ADMFORMULA",
+        "USUARIOFORMULA"
+      ],
+      "layout_complexity": "low_visual_medium_functional",
+      "layout_notes": "Layout lineal y tabular con cabecera de cuenta, detalle de movimientos, corte por día, corte por mes y bloque final de acumulados. La dificultad visual es baja, pero el reporte depende de cortes de control y de la correcta ubicación de totales parciales y generales."
+    },
+    "qa_impact": "El riesgo principal está en la consistencia del saldo mes anterior, total diario, total mensual y total general, además de la correcta separación entre importes actualizados, no actualizados y verificados. También debe validarse el orden exacto por fecha de movimiento y número de asiento.",
+    "recommended_action": [
+      "Separar la query base de movimientos de la lógica de acumulados por día, mes y total general.",
+      "Migrar SALDO_MES_ANT como cálculo aislado y testeable.",
+      "Preservar exactamente los cortes por G_MES, G_DIA y G_MOVIMIENTOS.",
+      "Validar en QA por fila, subtotal diario, subtotal mensual y total general.",
+      "Mantener el orden del detalle por FE_MOV y NU_ASIENTO sin alteraciones."
+    ],
+    "assumptions": [
+      "La complejidad final del reporte se consolida como Media según la planilla validada del lote.",
+      "La salida final es tabular estándar, sin requerimientos especiales de formato TXT.",
+      "No se relevaron format triggers adicionales en el material compartido."
+    ],
+    "executive_justification": "CONR30007 presenta una lógica contable con cortes de control relevantes, pero no alcanza el nivel de complejidad de los reportes TXT ni de los balances jerárquicos más pesados del lote. La dificultad está en reproducir con precisión los acumulados y saldos, manteniendo el comportamiento funcional del original dentro de una salida tabular relativamente estándar."
+  },
+  "migration_assets_detected": {
+    "has_queries": true,
+    "has_formulas": true,
+    "has_layout_model": true,
+    "has_program_units": true,
+    "has_triggers": true
+  },
+  "future_migration_notes": {
+    "keep_for_migration": true,
+    "priority": "medium",
+    "notes": [
+      "Aislar el cálculo de SALDO_MES_ANT para facilitar pruebas.",
+      "Preservar exactamente los cortes por mes y día.",
+      "Validar el comportamiento de IN_TP_ASIENTO en la selección de movimientos.",
+      "Revisar si TOT_SIN_ACT requiere fórmula adicional no incluida en el material relevado.",
+      "Mantener desacoplada la auditoría de BeforeReport respecto del render final."
+    ]
+  },
+  "traceability": {
+    "source_inputs": {
+      "images_received": 4,
+      "queries_received": 1,
+      "formula_code_received": 6,
+      "layout_received": 2
+    },
+    "generated_at": "2026-04-13",
+    "status": "quoted"
+  }
+}
