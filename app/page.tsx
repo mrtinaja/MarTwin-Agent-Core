@@ -1,5 +1,5 @@
 "use client";
-
+export const dynamic = "force-dynamic";
 import { useSession, signIn, signOut } from "next-auth/react";
 import { useEffect, useState, useMemo, useCallback } from "react";
 import { 
@@ -28,6 +28,8 @@ const LiveTimer = ({ startTime }: { startTime: string }) => {
 };
 
 export default function Dashboard() {
+ 
+  const sessionContext = useSession();
   const { data: session, status } = useSession();
   const [mounted, setMounted] = useState(false);
   const [ping, setPing] = useState(16); // Basado en tu captura
@@ -66,7 +68,7 @@ export default function Dashboard() {
   const activeTimer = useMemo(() => clockifyEntries.find((e: any) => !e.endTime), [clockifyEntries]);
   const maxRate = useMemo(() => netData.length > 0 ? Math.max(...netData.map(d => d.down)) : 340, [netData]);
 
-  if (!mounted || status === "loading") return <div className="flex min-h-screen items-center justify-center bg-black"><Loader2 className="text-[#08646E] animate-spin" size={48} /></div>;
+  if (!mounted) return null; // Solo para evitar errores de hidratación
 
   return (
     <div className="p-12 min-h-screen bg-[#020202] text-zinc-300 font-mono font-extralight overflow-y-auto select-none">

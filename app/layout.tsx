@@ -1,34 +1,25 @@
-import './globals.css'
-import { Inter } from 'next/font/google'
-import Sidebar from '@/components/Sidebar' 
-import { NextAuthProvider } from './providers'
-
-const inter = Inter({ subsets: ['latin'] })
-
-export const metadata = {
-  title: 'MarTwin Agent Core',
-  description: 'Zurich Santander Neural Interface',
-}
+// app/layout.tsx
+import "./globals.css";
+import { Providers } from "./providers"; // 🟢 Importación nombrada correcta
+import Sidebar from "@/components/Sidebar";
 
 export default function RootLayout({
   children,
 }: {
-  children: React.ReactNode
+  children: React.ReactNode;
 }) {
   return (
-    <html lang="es" suppressHydrationWarning>
-      <body className={`${inter.className} bg-black text-white overflow-x-hidden`}>
-        <NextAuthProvider>
-          <div className="flex min-h-screen">
-            <aside className="w-64 flex-shrink-0 border-r border-[#08646E]/20 bg-[#020202] sticky top-0 h-screen">
-              <Sidebar />
-            </aside>
-            <main className="flex-1 bg-[#020202]">
+    <html lang="es">
+      <body className="bg-black">
+        <Providers>
+          <div className="flex h-screen overflow-hidden">
+            <Sidebar />
+            <main className="flex-1 overflow-y-auto">
               {children}
             </main>
           </div>
-        </NextAuthProvider>
+        </Providers>
       </body>
     </html>
-  )
+  );
 }

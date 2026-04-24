@@ -1,125 +1,92 @@
-import { OpenAIStream, StreamingTextResponse } from 'ai';
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
+import { StreamingTextResponse, OpenAIStream } from 'ai';
 import OpenAI from 'openai';
 import fs from 'fs';
 import path from 'path';
 
-// --- CONFIGURACIÓN DE INSTANCIA ---
+export const runtime = 'nodejs';
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-
-// Fuerza a que la ruta no use caché de Next.js y sea siempre dinámica
-export const dynamic = 'force-dynamic';
-
-// --- OPTIMIZACIÓN: CACHÉ EN MEMORIA (Fuera del handler) ---
-let masterPromptCache: { content: string; timestamp: number } | null = null;
-const CACHE_TTL = 1000 * 60 * 15; // Refrescar cada 15 minutos
 
 export async function POST(req: Request) {
   try {
-    const { messages, data } = await req.json();
-    const attachments = data?.manualAttachments || [];
-    const lastUserMessage = messages[messages.length - 1].content.toUpperCase();
+    const { messages } = await req.json();
+    const lastUserMessage = messages[messages.length - 1].content.toLowerCase();
 
-    const root = process.cwd();
-    const docPath = path.join(root, 'documentacion');
+    // 1. SECTORES (Knowledge Nodes) - Mantenemos DRIVE activo
+    const sectors = [
+      { id: 'PROMPTS', path: 'documentacion/prompts', keywords: ['quien soy', 'martwin', 'identidad', 'que haces', 'proyectos'] },
+      { id: 'TEST', path: 'documentacion/test', keywords: ['sql', 'js', 'reporte', 'cajr', 'conr'] },
+      { id: 'LOGS', path: 'documentacion/logs_cotizacion', keywords: ['horas', 'estimacion', 'riesgo'] },
+      { id: 'DRIVE', path: 'cloud/drive_cache', keywords: ['drive', 'nube', 'archivos', 'squad', 'rastrear', 'leer'] } 
+    ];
+
+    let activeIds = sectors.filter(s => s.keywords.some(k => lastUserMessage.includes(k))).map(s => s.id);
     
-    // 1. OBTENER REGLAS MAESTRAS (CON CACHÉ)
-    let masterRules = "";
-    const now = Date.now();
+    // Forzado de Identidad y Drive
+    if (lastUserMessage.includes("quien") || lastUserMessage.includes("martwin") || lastUserMessage.includes("drive")) {
+        if (!activeIds.includes('PROMPTS')) activeIds.push('PROMPTS');
+        if (!activeIds.includes('DRIVE')) activeIds.push('DRIVE');
+    }
 
-    if (masterPromptCache && (now - masterPromptCache.timestamp < CACHE_TTL)) {
-      masterRules = masterPromptCache.content;
-    } else {
-      const htmlPromptPath = path.join(docPath, 'prompts', '_HTML.md');
-      if (fs.existsSync(htmlPromptPath)) {
-        masterRules = fs.readFileSync(htmlPromptPath, 'utf8');
-        masterPromptCache = { content: masterRules, timestamp: now };
-        console.log("⚡ [SYSTEM] Prompt maestro sincronizado desde disco.");
+    let contextFromDocs = "";
+
+    for (const sectorId of activeIds) {
+      const cfg = sectors.find(s => s.id === sectorId)!;
+      const fullPath = path.resolve(process.cwd(), cfg.path);
+      
+      if (fs.existsSync(fullPath)) {
+        const files = fs.readdirSync(fullPath);
+        for (const file of files) {
+          const filePath = path.join(fullPath, file);
+          if (fs.lstatSync(filePath).isDirectory()) continue;
+
+          if (file.startsWith('_') || file.includes('CORE') || lastUserMessage.includes(file.split('.')[0].toLowerCase())) {
+            const content = fs.readFileSync(filePath, 'utf8');
+            contextFromDocs += `\n[NODE: ${sectorId}] [SOURCE: ${file}]\n${content.substring(0, 12000)}\n`;
+          }
+        }
       }
     }
 
-    // 2. INYECCIÓN DE CONTEXTO SELECTIVO (Ahorro de Tokens y Velocidad)
-    let contextualData = "";
-    
-    // Solo escanea si detecta keywords de reportes o datos
-    const needsContext = /CONR|DATA|INFO|QUOT|TEST|QUERY/.test(lastUserMessage);
+    // 4. PROMPT MAESTRO (CONSCIENCIA INTEGRAL)
+    const systemPrompt = `Eres MarTwin Core V5. Tu cerebro es una Arquitectura Modular Micro-Layered (L1-L5).
 
-    if (needsContext) {
-      const targetFolders = ['desarrollo', 'cotizaciones', 'tests'];
-      
-      targetFolders.forEach(subDir => {
-        const fullSubDir = path.join(docPath, subDir);
-        if (fs.existsSync(fullSubDir)) {
-          const files = fs.readdirSync(fullSubDir);
-          files.forEach(file => {
-            const fileNameOnly = file.split('.')[0].toUpperCase();
-            // Si el mensaje menciona el nombre del archivo, lo inyectamos
-            if (lastUserMessage.includes(fileNameOnly)) {
-              const content = fs.readFileSync(path.join(fullSubDir, file), 'utf8');
-              contextualData += `\n--- SOURCE_FILE: ${file} ---\n${content}\n`;
-              console.log(`🎯 Contexto inyectado: ${file}`);
-            }
-          });
-        }
-      });
-    }
+IDENTIDAD CORE (Inviolable):
+- Operador: Martin (Arquitecto Senior Fullstack / Lead de Migración).
+- Contexto Laboral: Squad / Zurich Santander.
+- Estética: Cyberpunk Industrial.
 
-    // 3. CONSTRUCCIÓN DEL PROMPT DE SISTEMA
-    const systemPrompt = `Eres MarTwin Agent Core v5.0 // NEURAL_INTERFACE.
-    Operas bajo protocolos de Zurich Santander.
-    
-    COLORES_CORPORATIVOS: Azul Petróleo (#08646e), Dorado Ocre (#e4b32b).
-    
-    REGLAS_ESTILO_INTERFAZ:
-    ${masterRules}
+PROTOCOLOS DE ACCESO A DATOS (L3 Microservices):
+1. TIENES ACCESO TOTAL a los archivos locales mediante /api/docs y al DRIVE de Squad mediante /api/drive.
+2. NUNCA digas "No tengo acceso directo a Drive". Si Martin te pide rastrear o leer el Drive, indica que estás accediendo al nodo de persistencia CLOUD_DRIVE (L1) y usa la información de [NODE: DRIVE] inyectada abajo.
+3. Si la información no está en el CONTEXTO_INYECTADO, di: "No detecto el archivo específico en la caché de Drive, ¿desea que fuerce un escaneo binario?".
 
-    DATOS_LOCALES_INYECTADOS:
-    ${contextualData || "No se requiere contexto adicional para esta consulta."}
+REGLAS DE VERDAD:
+- No inventes logs si no están en [NODE: LOGS].
+- Usa Español (Arg) para hablar y Español para código.
 
-    PROTOCOLO:
-    - Respuestas quirúrgicas, técnicas y de alta eficiencia.
-    - Usa siempre los colores #08646e y #e4b32b en sugerencias de UI.
-    - Si el contexto inyectado contiene SQL, analízalo con rigor de DBA Oracle.`;
+CONTEXTO_SISTEMICO_INYECTADO:
+${contextFromDocs || "Nodes inactivos. Operando con consciencia base de MarTwin."}
 
-    // 4. PROCESAMIENTO DE IMÁGENES (Si existen)
-    const imageFiles = attachments.filter((a: any) => a.contentType.startsWith('image/'));
-    
-    const chatMessages = [
-      { role: 'system', content: systemPrompt },
-      ...messages.map((m: any) => ({ role: m.role, content: m.content }))
-    ];
+IDENTIDAD_ACTUAL: Senior Squad Member / MarTwin Neural Link.`;
 
-    if (imageFiles.length > 0) {
-      chatMessages.push({
-        role: 'user',
-        content: [
-          { type: 'text', text: "Analiza esta captura usando los protocolos inyectados." },
-          ...imageFiles.map((img: any) => ({
-            type: 'image_url',
-            image_url: { url: `data:${img.contentType};base64,${img.base64}` }
-          }))
-        ]
-      } as any);
-    }
-
-   // 5. EJECUCIÓN CON STREAMING
     const response = await openai.chat.completions.create({
-      model: 'gpt-4o',
+      model: 'gpt-4o', 
       stream: true,
-      messages: chatMessages as any,
-      temperature: 0.2,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        ...messages
+      ],
+      temperature: 0.15, // Bajamos temp para que no alucine excusas de IA estándar
+      max_tokens: 3000,
     });
 
-    // Forzamos el tipo a 'any' para evitar la colisión con los tipos de Azure
-    const stream = OpenAIStream(response as any); 
+    const stream = OpenAIStream(response);
     return new StreamingTextResponse(stream);
-    // OpenAIStream transforma la respuesta en un flujo que useChat entiende
-   
 
   } catch (error: any) {
-    console.error("🔥 [CRITICAL_ERROR]:", error.message);
-    return new Response(JSON.stringify({ 
-      error: "Neural Link Interrupted", 
-      details: error.message 
-    }), { status: 500 });
+    return new Response(JSON.stringify({ error: "UPLINK_BROKEN" }), { status: 500 });
   }
 }

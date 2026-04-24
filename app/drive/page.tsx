@@ -1,25 +1,33 @@
 "use client";
 
+// 1. Forzamos el modo dinámico para que Next.js no intente pre-renderizarlo sin sesión
+export const dynamic = "force-dynamic";
+
+import React, { useState, useEffect } from 'react';
 import { useSession } from "next-auth/react";
-import { useEffect, useState } from "react";
 import { 
   Search, ExternalLink, FileText, Loader2, Plus, 
   Database, ShieldCheck, Activity, CloudCog, Lock 
 } from "lucide-react";
 
 export default function DrivePage() {
-  const { data: session } = useSession();
+  // 🟢 CORRECCIÓN DE SEGURIDAD: Evitamos desestructurar directamente
+  const sessionContext = useSession();
+  const session = sessionContext?.data;
+  
   const [files, setFiles] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [uploading, setUploading] = useState(false);
   const [mounted, setMounted] = useState(false);
 
+  // Aseguramos que el componente esté montado en el cliente
   useEffect(() => {
     setMounted(true);
   }, []);
 
   async function fetchDrive(query = "") {
+    if (!session) return; // No intentamos fetch sin sesión
     setLoading(true);
     try {
       const res = await fetch(`/api/drive/count?q=${query}`);
@@ -33,7 +41,8 @@ export default function DrivePage() {
   }
 
   useEffect(() => {
-    if (session && mounted) {
+    // Solo ejecutamos si estamos en el cliente y hay sesión
+    if (mounted && session) {
       fetchDrive();
     }
   }, [session, mounted]);
@@ -51,7 +60,8 @@ export default function DrivePage() {
     }
   };
 
-  // Renderizado condicional de seguridad
+  // 🟢 RENDERIZADO DEFENSIVO: Si no está montado, devolvemos un cascarón vacío
+  // Esto evita el error de "Hydration Mismatch" y errores de Prerendering
   if (!mounted) {
     return <div className="min-h-screen bg-[#020202]" />;
   }
@@ -83,7 +93,7 @@ export default function DrivePage() {
             {uploading ? <Loader2 className="animate-spin" size={16} /> : <Plus size={16} />}
             {uploading ? "SYNCING..." : "ATTACH_ASSET"}
           </div>
-          <input type="file" className="hidden" onChange={handleUpload} />
+          <input type="file" className="hidden" onChange={handleUpload} disabled={uploading} />
         </label>
       </header>
 

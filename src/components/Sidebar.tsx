@@ -13,7 +13,8 @@ import {
 
 export default function Sidebar() {
   const pathname = usePathname();
-  const { data: session } = useSession();
+  const sessionContext = useSession();
+  const session = sessionContext?.data || null;
 
   const isSquad = session?.user?.email?.endsWith('@squad.com.ar');
 
@@ -35,19 +36,21 @@ export default function Sidebar() {
       <div className="flex flex-col items-center justify-center mb-10 mt-2 group px-4">
         
        {/* Icono logo.webp */}
-<div className="mb-2 flex items-center justify-center">
-  <NextImage 
-    src="/logo.webp" 
-    alt="Agent Icon"
-    width={48}    // Tamaño fijo en px
-    height={48}   // Tamaño fijo en px
-    priority
-    className="object-contain"
-    // Esto ayudará a ver si el navegador al menos intenta cargar algo
-    onLoadingComplete={() => console.log("Logo loaded successfully")}
-    onError={() => console.error("Logo failed to load at /logo.webp")}
-  />
-</div>
+        <div className="mb-2 flex items-center justify-center">
+          <NextImage 
+            src="/logo.webp" 
+            alt="MarTwin Agent Icon"
+            width={48} 
+            height={48} 
+            priority
+            className="object-contain"
+            // ESTO ES LO QUE SOLUCIONA EL WARNING:
+            style={{ width: 'auto', height: 'auto' }}
+            // Cambia también esto para evitar el aviso de deprecación:
+            onLoad={() => console.log("Logo loaded successfully")}
+            onError={() => console.error("Logo failed to load at /logo.webp")}
+          />
+        </div>
 
         <div className="relative w-full h-16 flex items-center justify-center">
           <svg viewBox="0 0 300 80" className="w-full h-full object-contain">
