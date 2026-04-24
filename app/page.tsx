@@ -72,16 +72,33 @@ export default function Dashboard() {
 
   return (
     <div className="p-12 min-h-screen bg-[#020202] text-zinc-300 font-mono font-extralight overflow-y-auto select-none">
-      <header className="mb-16 flex justify-between items-start">
-        <div>
-          <div className="text-4xl tracking-tighter text-[#0ad1ea] uppercase italic mb-4">SYSTEMS <span className="text-white">DASHBOARD</span></div>
-          <div className="text-[10px] tracking-[0.5em] uppercase italic flex items-center gap-2">
-            <div className={`h-1.5 w-1.5 rounded-full ${activeTimer ? 'bg-[#0ad1ea] shadow-[0_0_10px_#0ad1ea] animate-pulse' : 'bg-[#08646E] animate-ping'}`} />
-            OPERATOR: {session?.user?.name?.toUpperCase()} // {activeTimer ? 'LIVE_LINK_ACTIVE' : 'STANDBY_MODE'}
-          </div>
-        </div>
-        <div className="text-[7px] text-zinc-700 uppercase tracking-[0.5em]">Martwin_Agent_Core_v4.2</div>
-      </header>
+     <header className="mb-16 flex justify-between items-start">
+  <div>
+    {/* Título principal en AMBAR INDUSTRIAL */}
+    <div className="text-4xl tracking-tighter text-[#FFB000] uppercase italic mb-4 font-black shadow-[0_0_15px_rgba(255,176,0,0.2)]">
+      SYSTEMS <span className="text-white">DASHBOARD</span>
+    </div>
+    
+    <div className="text-[10px] tracking-[0.5em] uppercase italic flex items-center gap-2">
+      {/* Círculo de pulso: Ámbar intenso siempre, parpadea si está activo */}
+      <div className={`h-1.5 w-1.5 rounded-full bg-[#FFB000] ${activeTimer ? 'shadow-[0_0_10px_#FFB000] animate-pulse' : 'opacity-40'}`} />
+      
+      <span className="text-zinc-500">OPERATOR:</span> 
+      <span className="text-white font-bold">{session?.user?.name?.toUpperCase()}</span> 
+      <span className="text-zinc-700">//</span> 
+      
+      {/* Texto de estado en Ámbar */}
+      <span className="text-[#FFB000] font-bold">
+        {activeTimer ? 'LIVE_LINK_ACTIVE' : 'STANDBY_MODE'}
+      </span>
+    </div>
+  </div>
+  
+  {/* Etiqueta de versión en Ámbar sutil */}
+  <div className="text-[7px] text-[#FFB000]/60 border border-[#FFB000]/20 uppercase tracking-[0.5em] px-3 py-1">
+    Martwin_Agent_Core_v5.2
+  </div>
+</header>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
         {/* NEURAL LATENCY CARD */}
