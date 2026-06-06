@@ -3,44 +3,48 @@ export const dynamic = "force-dynamic";
 
 import { useState, useEffect, useCallback } from 'react';
 import { useSession } from "next-auth/react";
-import { 
-  ArrowLeft, Cpu, Database, Zap, Activity, Eye, Loader2, Save, Terminal, FileCode 
+import {
+  ArrowLeft, Zap, Activity, Loader2, Save, FileCode
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import Link from 'next/link';
+import { workspaceSectionList } from '@/src/lib/workspaceProfile';
 
 interface DocEntry { name: string; }
-interface RepoData { migraciones: DocEntry[]; cotizaciones: DocEntry[]; tests: DocEntry[]; prompts: DocEntry[]; }
+type RepoData = Record<string, DocEntry[]>;
 
 export default function DocsPage() {
   const sessionContext = useSession();
   const session = sessionContext?.data;
 
   const [mounted, setMounted] = useState(false);
-  const [data, setData] = useState<RepoData>({ migraciones: [], cotizaciones: [], tests: [], prompts: [] });
+  const [data, setData] = useState<RepoData>({ requirements: [], workItems: [], qa: [], knowledge: [], prompts: [] });
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
-  const [status, setStatus] = useState("CORE_READY");
-  const [savePath, setSavePath] = useState("documentacion/test/"); // <-- Recuperamos el input de destino
+  const [status, setStatus] = useState("SISTEMA_LISTO");
+  const [saveType, setSaveType] = useState("work");
   const [isSaving, setIsSaving] = useState(false);
   const [mode, setMode] = useState<"MD" | "HTML">("MD");
 
   const loadRepos = useCallback(async () => {
     if (!session) return;
     try {
-      setStatus("INJECTING_SCANNER...");
+      setStatus("ESCANEANDO_REPOSITORIOS...");
       const res = await fetch(`/api/docs/read?t=${Date.now()}`, { cache: 'no-store' });
       if (res.ok) {
         const json = await res.json();
         setData({
-          migraciones: json.migraciones || [],
-          cotizaciones: json.cotizaciones || [],
-          tests: json.tests || [],
-          prompts: json.prompts || []
+          requirements: json.requirements || json.cotizaciones || [],
+          workItems: json.workItems || json.migrations || [],
+          qa: json.qa || json.tests || [],
+          knowledge: json.knowledge || [],
+          prompts: json.prompts || [],
         });
-        setStatus("REPOS_SYNCED_OK");
+        setStatus("REPOSITORIOS_SINCRONIZADOS");
       }
-    } catch (err) { setStatus("SCAN_FAILURE"); }
+    } catch (err) {
+      setStatus("ERROR_DE_ESCANEO");
+    }
   }, [session]);
 
   useEffect(() => {
@@ -49,226 +53,168 @@ export default function DocsPage() {
   }, [loadRepos, session]);
 
   const loadFileToEditor = async (fileName: string) => {
-    setStatus("DOWNLOADING_BUFFER...");
+    setStatus("CARGANDO_ARCHIVO...");
     try {
       const res = await fetch(`/api/docs/read?name=${fileName}`);
       if (res.ok) {
         const fileData = await res.json();
-        setTitle(fileName); 
+        setTitle(fileName);
         setContent(fileData.content || "");
-        // Intentamos autodetectar la carpeta para el savePath
-        if (fileName.includes('.js')) setSavePath("documentacion/test/");
-        if (fileName.includes('.md')) setSavePath("documentacion/prompts/");
-        setStatus("BUFFER_LOADED");
+        if (fileName.includes('.js') || fileName.includes('.ts')) setSaveType("work");
+        if (fileName.includes('.md')) setSaveType("knowledge");
+        if (fileName.includes('.json')) setSaveType("requirements");
+        setStatus("ARCHIVO_CARGADO");
       }
-    } catch (e) { setStatus("CRITICAL_ERROR"); }
+    } catch (e) {
+      setStatus("ERROR_CRITICO");
+    }
   };
 
   const handleSave = async () => {
-    if (!title) return setStatus("ERROR: NO_FILENAME");
+    if (!title) return setStatus("ERROR: SIN_NOMBRE");
     setIsSaving(true);
-    setStatus("UPLOADING_TO_TOSHIBA...");
+    setStatus("PERSISTIENDO_DATOS...");
     try {
       const res = await fetch('/api/docs/save', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          path: `${savePath}${title.includes('.') ? title : title + '.js'}`, 
-          content 
-        })
+        body: JSON.stringify({ title, type: saveType, content }),
       });
-      if (res.ok) setStatus("PERSISTENCE_SUCCESS");
-      else setStatus("SAVE_FAILED");
-    } catch (e) { setStatus("UPLINK_ERROR"); }
-    finally { setIsSaving(false); }
+      if (res.ok) {
+        setStatus("GUARDADO_EXITOSO");
+        loadRepos();
+      } else {
+        setStatus("FALLO_AL_GUARDAR");
+      }
+    } catch (e) {
+      setStatus("ERROR_DE_GUARDADO");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const generateSimulatedHTML = () => {
+    const escaped = content.replace(/`/g, '\\`').replace(/\${/g, '\\${');
     return `
       <!DOCTYPE html>
       <html>
       <head>
         <style>
-          body { background: #f0f0f0; margin: 0; padding: 20px; font-family: 'Courier New', monospace; }
-          .paper { background: white; width: 270mm; min-height: 210mm; padding: 15mm; margin: auto; box-shadow: 0 0 20px rgba(0,0,0,0.2); position: relative; }
-          table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-          th { border-bottom: 2px solid #000; padding: 5px; font-size: 10px; text-align: left; background: #eee; text-transform: uppercase; }
-          td { border-bottom: 1px solid #ddd; padding: 4px; font-size: 9px; }
-          .money { text-align: right; font-weight: bold; }
-          .center { text-align: center; }
-          .right { text-align: right; }
-          .header-mock { border-bottom: 3px double #000; padding-bottom: 10px; margin-bottom: 20px; }
+          body { background: #f8fafc; margin: 0; padding: 40px; font-family: Inter, sans-serif; color: #1e1248; }
+          .paper { background: white; width: 210mm; min-height: 297mm; padding: 25mm; margin: auto; border-radius: 12px; box-shadow: 0 10px 50px rgba(30,18,72,0.1); border: 1px solid #e2e8f0; }
+          pre { white-space: pre-wrap; font-size: 12px; line-height: 1.6; }
         </style>
       </head>
       <body>
-        <div class="paper">
-          <div id="render-root">
-             <p style="color:#088395">INICIALIZANDO_MOTOR_GRAFICO_V5...</p>
-          </div>
-        </div>
-        <script>
-          const raw = \`${content.replace(/`/g, '\\`').replace(/\${/g, '\\${')}\`;
-          function getLayout(code) {
-            const match = code.match(/layout:\\s*[\`']([\\s\\S]*?)[\`']/);
-            return match ? match[1] : '<h2>ERROR: No se encontró el bloque "layout"</h2>';
-          }
-          function getAnyColumns(code, queryName) {
-            const queryPart = code.split(queryName)[1] || "";
-            const colRegex = /"([^"]+\\|[^"]+)"/g;
-            let cols = [];
-            let m;
-            const limit = queryPart.indexOf('\`');
-            const searchZone = limit > -1 ? queryPart.substring(0, limit) : code;
-            while ((m = colRegex.exec(searchZone)) !== null) {
-              if (m[1].includes('|')) cols.push(m[1]);
-            }
-            if (cols.length === 0) {
-              const generalRegex = /"([^"]+\\|[^"]+)"/g;
-              while ((m = generalRegex.exec(code)) !== null) {
-                if (m[1].includes('|')) cols.push(m[1]);
-              }
-            }
-            return [...new Set(cols)];
-          }
-          function mock(alias) {
-            if (alias.includes('money')) return (Math.random() * 9000).toLocaleString('es-AR', {minimumFractionDigits:2});
-            if (alias.includes('date')) return new Date().toLocaleDateString('es-AR');
-            if (alias.includes('int')) return Math.floor(Math.random() * 1000).toString();
-            return "VAL_" + Math.floor(Math.random() * 99);
-          }
-          try {
-            let html = getLayout(raw);
-            html = html.replace(/#\\[(.*?)\\]#/g, (match, qName) => {
-                const columns = getAnyColumns(raw, qName);
-                if (columns.length === 0) return "<tr><td colspan='5'>FALLO_SCAN_COLUMNAS</td></tr>";
-                let tableRows = "<thead><tr>";
-                columns.forEach(c => tableRows += \`<th>\${c.split('|')[0]}</th>\`);
-                tableRows += "</tr></thead><tbody>";
-                for(let i=0; i<8; i++) {
-                  tableRows += "<tr>";
-                  columns.forEach(c => {
-                    const [_, type, align] = c.split('|');
-                    tableRows += \`<td class="\${align || ''} \${type || ''}">\${mock(c)}</td>\`;
-                  });
-                  tableRows += "</tr>";
-                }
-                tableRows += "</tbody>";
-                return tableRows;
-            });
-            html = html.replace(/#\\{(.*?)\\}#/g, (m, f) => mock(f));
-            document.getElementById('render-root').innerHTML = html;
-          } catch(e) {
-            document.getElementById('render-root').innerHTML = "RENDER_CRITICAL: " + e.message;
-          }
-        </script>
+        <div class="paper"><pre>${escaped}</pre></div>
       </body>
       </html>
     `;
   };
 
-  if (!mounted) return <div className="min-h-screen bg-black" />;
+  if (!mounted) return <div className="min-h-screen bg-gray-50" />;
 
   return (
-    <div className="flex-1 w-full p-6 bg-[#020202] min-h-screen font-mono text-zinc-500 relative">
-      {/* SCANLINE OVERLAY */}
-      <div className="absolute inset-0 pointer-events-none z-50 opacity-[0.02] bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(8,131,149,0.06),rgba(255,176,0,0.02))] bg-[length:100%_2px,3px_100%]"></div>
-
-      <div className="max-w-[1900px] mx-auto relative z-10">
-        <header className="mb-6 flex justify-between items-center border-b-2 border-[#088395]/20 pb-6">
+    <div className="flex-1 w-full p-8 bg-gray-50 min-h-screen font-sans text-[#1e1248] relative selection:bg-[#e50051]/10">
+      <div className="max-w-[1800px] mx-auto relative z-10">
+        <header className="mb-8 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-6 bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
           <div className="flex items-center gap-6">
-            <Link href="/dev" className="p-2 border border-[#088395]/30 hover:border-[#088395] hover:bg-[#088395]/10 transition-all text-[#088395]">
+            <Link href="/dev" className="p-3 rounded-2xl bg-gray-50 text-[#1e1248] hover:bg-[#e50051] hover:text-white transition-all shadow-sm">
               <ArrowLeft size={20} />
             </Link>
             <div>
-              <h1 className="text-2xl text-white font-black uppercase italic tracking-tighter">
-                SYS_<span className="text-[#088395]">AUDITOR_VISOR</span>
+              <h1 className="text-2xl font-normal uppercase tracking-tighter">
+                Centro de <span className="text-[#e50051]">Documentacion</span>
               </h1>
               <div className="flex items-center gap-2 mt-1">
-                <Activity size={10} className={isSaving ? "text-[#FFB000] animate-spin" : "text-[#088395]"} />
-                <span className={`text-[8px] font-bold tracking-widest ${isSaving ? "text-[#FFB000]" : "text-[#088395]/60"}`}>
-                  {status}
+                <Activity size={14} className={isSaving ? "text-[#e50051] animate-spin" : "text-green-500"} />
+                <span className="text-[10px] font-normal tracking-widest text-gray-400 uppercase">
+                  Status: <span className="text-[#1e1248]">{status}</span>
                 </span>
               </div>
             </div>
           </div>
 
-          <div className="flex items-center gap-4">
-            {/* INPUT DE DESTINO (RECUPERADO) */}
-            <div className="flex items-center bg-black border border-white/10 px-3 py-2">
-              <Save size={12} className="text-[#FFB000] mr-3" />
-              <input 
-                type="text" 
-                value={savePath} 
-                onChange={(e) => setSavePath(e.target.value)}
-                className="bg-transparent border-none outline-none text-[10px] text-[#FFB000] w-64 font-bold uppercase tracking-widest"
-                placeholder="TARGET_PATH..."
-              />
+          <div className="flex flex-wrap items-center gap-4 w-full xl:w-auto">
+            <div className="flex items-center bg-gray-50 border border-gray-100 rounded-2xl px-4 py-2 flex-1 xl:flex-none">
+              <Save size={14} className="text-[#e50051] mr-3" />
+              <select
+                value={saveType}
+                onChange={(e) => setSaveType(e.target.value)}
+                className="bg-transparent border-none outline-none text-[11px] text-[#1e1248] w-full xl:w-64 font-normal uppercase tracking-tight"
+              >
+                <option value="requirements">Requerimiento / Input</option>
+                <option value="work">Desarrollo / Artefacto</option>
+                <option value="qa">QA / Evidencia</option>
+                <option value="knowledge">Conocimiento</option>
+                <option value="prompt">Prompt</option>
+              </select>
             </div>
 
-            <select 
-              onChange={(e) => loadFileToEditor(e.target.value)} 
-              className="bg-[#0a0a0a] border border-white/10 p-2 text-[10px] text-zinc-400 outline-none uppercase w-64 hover:border-[#088395] transition-colors"
+            <select
+              onChange={(e) => loadFileToEditor(e.target.value)}
+              className="bg-white border border-gray-200 rounded-2xl p-2.5 text-[11px] text-[#1e1248] font-normal outline-none uppercase w-full xl:w-64 cursor-pointer hover:border-[#1e1248] transition-colors shadow-sm"
               value=""
             >
-              <option value="" disabled>READ_MEMORY_STREAM...</option>
-              <optgroup className="bg-black text-[#088395]" label="--- TESTS / JS MODELS ---">
-                {data.tests?.map(r => <option key={r.name} value={r.name}>{r.name}</option>)}
-              </optgroup>
-              <optgroup className="bg-black text-[#FFB000]" label="--- MIGRATIONS ---">
-                {data.migraciones?.map(r => <option key={r.name} value={r.name}>{r.name}</option>)}
-              </optgroup>
+              <option value="" disabled>Seleccionar archivo...</option>
+              {workspaceSectionList.map(section => (
+                <optgroup key={section.key} label={section.title.toUpperCase()}>
+                  {(data[section.key] || []).map(r => (
+                    <option key={`${section.key}-${r.name}`} value={r.name}>{r.name}</option>
+                  ))}
+                </optgroup>
+              ))}
             </select>
 
-            <button 
+            <button
               onClick={handleSave}
               disabled={isSaving}
-              className="h-10 border-2 border-[#088395] px-8 text-[#088395] hover:bg-[#088395] hover:text-black font-black text-[10px] transition-all flex items-center gap-3 disabled:opacity-50"
+              className="h-12 bg-[#1e1248] px-8 text-white rounded-2xl hover:bg-[#e50051] font-normal text-xs transition-all flex items-center gap-3 disabled:opacity-50 shadow-lg shadow-[#1e1248]/10 active:scale-95"
             >
-              {isSaving ? <Loader2 size={14} className="animate-spin" /> : <Zap size={14} />}
-              SAVE_AND_SYNC
+              {isSaving ? <Loader2 size={16} className="animate-spin" /> : <Zap size={16} />}
+              GUARDAR Y SINCRONIZAR
             </button>
           </div>
         </header>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-[78vh]">
-          {/* EDITOR SECTION */}
-          <div className="bg-[#050505] border border-white/10 flex flex-col overflow-hidden shadow-2xl">
-            <div className="p-3 border-b border-white/5 bg-zinc-950/50 flex justify-between items-center">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 h-[75vh]">
+          <div className="bg-[#1e1248] rounded-[2.5rem] flex flex-col overflow-hidden shadow-2xl border border-[#1e1248]">
+            <div className="px-6 py-4 border-b border-white/5 bg-white/5 flex justify-between items-center">
               <div className="flex items-center gap-3">
-                <FileCode size={12} className="text-[#088395]" />
-                <input 
-                  type="text" 
-                  value={title} 
+                <FileCode size={16} className="text-[#e50051]" />
+                <input
+                  type="text"
+                  value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  className="bg-transparent border-none outline-none text-[10px] uppercase font-black text-white/80 w-64"
-                  placeholder="FILENAME.js"
+                  className="bg-transparent border-none outline-none text-xs font-normal text-white/90 w-full placeholder:text-white/20"
+                  placeholder="NOMBRE_ARCHIVO.md"
                 />
               </div>
-              <div className="flex bg-black p-1 border border-white/10">
-                <button onClick={() => setMode("MD")} className={`px-4 py-1 text-[9px] font-black transition-all ${mode === 'MD' ? 'bg-[#088395] text-white' : 'text-zinc-600'}`}>DOC</button>
-                <button onClick={() => setMode("HTML")} className={`px-4 py-1 text-[9px] font-black transition-all ${mode === 'HTML' ? 'bg-[#FFB000] text-black' : 'text-zinc-600'}`}>MOCK_RENDER</button>
+              <div className="flex bg-black/30 p-1 rounded-xl">
+                <button onClick={() => setMode("MD")} className={`px-5 py-1.5 rounded-lg text-[10px] font-normal transition-all ${mode === 'MD' ? 'bg-[#e50051] text-white' : 'text-white/40 hover:text-white'}`}>MARKDOWN</button>
+                <button onClick={() => setMode("HTML")} className={`px-5 py-1.5 rounded-lg text-[10px] font-normal transition-all ${mode === 'HTML' ? 'bg-[#e50051] text-white' : 'text-white/40 hover:text-white'}`}>PREVIEW</button>
               </div>
             </div>
-            <textarea 
-              className="w-full h-full bg-transparent p-6 text-[12px] text-[#088395]/90 font-mono outline-none resize-none custom-scrollbar leading-relaxed selection:bg-[#088395] selection:text-white" 
-              value={content} 
-              onChange={(e) => setContent(e.target.value)} 
+            <textarea
+              className="w-full h-full bg-transparent p-8 text-[13px] text-gray-300 font-mono outline-none resize-none custom-scrollbar leading-relaxed selection:bg-[#e50051] selection:text-white"
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
               spellCheck={false}
+              placeholder="// Escribe aqui codigo, documentacion, evidencia o decisiones tecnicas..."
             />
           </div>
 
-          {/* PREVIEW SECTION */}
-          <div className="bg-[#050505] border border-white/10 flex flex-col overflow-hidden shadow-2xl relative">
-            <div className="absolute top-0 right-0 p-2 z-20">
-               <div className={`h-1.5 w-1.5 rounded-full ${mode === 'HTML' ? 'bg-[#FFB000] shadow-[0_0_10px_#FFB000]' : 'bg-[#088395] shadow-[0_0_10px_#088395]'} animate-pulse`}></div>
+          <div className="bg-white rounded-[2.5rem] flex flex-col overflow-hidden shadow-2xl border border-gray-100 relative">
+            <div className="absolute top-6 right-6 z-20">
+              <div className={`h-2 w-2 rounded-full ${mode === 'HTML' ? 'bg-[#e50051]' : 'bg-[#1e1248]'} animate-pulse shadow-lg`} />
             </div>
-            <div className="flex-1 overflow-auto bg-[#020202]">
+            <div className="flex-1 overflow-auto bg-gray-50/50">
               {mode === "MD" ? (
-                <div className="p-10 prose prose-invert max-w-none prose-p:text-zinc-400 prose-headings:text-white prose-code:text-[#088395]">
+                <div className="p-12 prose prose-slate max-w-none prose-p:text-[#1e1248]/80 prose-headings:text-[#1e1248] prose-headings:font-normal prose-code:text-[#e50051] prose-strong:text-[#1e1248] prose-img:rounded-3xl">
                   <ReactMarkdown>{content}</ReactMarkdown>
                 </div>
               ) : (
-                <iframe srcDoc={generateSimulatedHTML()} className="w-full h-full bg-white transition-all duration-700" title="UX Rendering" />
+                <iframe srcDoc={generateSimulatedHTML()} className="w-full h-full border-none transition-all duration-700" title="Technical Preview" />
               )}
             </div>
           </div>
@@ -276,8 +222,9 @@ export default function DocsPage() {
       </div>
 
       <style jsx global>{`
-        .custom-scrollbar::-webkit-scrollbar { width: 3px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #08839544; }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(30,18,72,0.2); border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #e50051; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
       `}</style>
     </div>

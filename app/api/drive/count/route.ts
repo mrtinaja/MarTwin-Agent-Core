@@ -20,7 +20,7 @@ export async function GET(req: Request) {
 
     const { searchParams } = new URL(req.url);
     const query = searchParams.get('q') || "";
-    const mode = searchParams.get('mode'); // 'index' para MarTwin RAG
+    const mode = searchParams.get('mode'); // 'index' para Pago TIC RAG
     
     const cacheKey = `${session.user.email}-${query}-${mode}`;
 
@@ -56,7 +56,7 @@ export async function GET(req: Request) {
     const files = response.data.files || [];
     
     // 4. FORMATEO PARA CONSUMO DE IA
-    // Si MarTwin pide el índice, le mandamos un objeto optimizado para su contexto
+    // Si Pago TIC pide el índice, le mandamos un objeto optimizado para su contexto
     const result = isIndex ? {
       kind: "drive#index",
       total: files.length,

@@ -3,7 +3,7 @@ export const dynamic = "force-dynamic";
 import { useSession, signIn, signOut } from "next-auth/react";
 import { useEffect, useState, useMemo, useCallback } from "react";
 import { 
-  Loader2, Activity, Zap, Globe, Terminal, Cpu, Database, Tag as TagIcon 
+  Loader2, Activity, Zap, Globe, Terminal, Cpu, Database, Tag as TagIcon, LogOut
 } from "lucide-react";
 import { AreaChart, Area, ResponsiveContainer } from "recharts";
 
@@ -24,15 +24,13 @@ const LiveTimer = ({ startTime }: { startTime: string }) => {
     const timer = setInterval(calculate, 1000);
     return () => clearInterval(timer);
   }, [startTime]);
-  return <span className="tabular-nums font-bold">{elapsed}</span>;
+  return <span className="tabular-nums font-normal text-[#e50051]">{elapsed}</span>;
 };
 
 export default function Dashboard() {
- 
-  const sessionContext = useSession();
   const { data: session, status } = useSession();
   const [mounted, setMounted] = useState(false);
-  const [ping, setPing] = useState(16); // Basado en tu captura
+  const [ping, setPing] = useState(16);
   const [netData, setNetData] = useState<any[]>([]);
   const [clockifyEntries, setClockifyEntries] = useState<any[]>([]);
   const [isLoadingClockify, setIsLoadingClockify] = useState(true);
@@ -68,134 +66,161 @@ export default function Dashboard() {
   const activeTimer = useMemo(() => clockifyEntries.find((e: any) => !e.endTime), [clockifyEntries]);
   const maxRate = useMemo(() => netData.length > 0 ? Math.max(...netData.map(d => d.down)) : 340, [netData]);
 
-  if (!mounted) return null; // Solo para evitar errores de hidratación
+  if (!mounted) return null;
 
   return (
-    <div className="p-12 min-h-screen bg-[#020202] text-zinc-300 font-mono font-extralight overflow-y-auto select-none">
-     <header className="mb-16 flex justify-between items-start">
-  <div>
-    {/* Título principal en AMBAR INDUSTRIAL */}
-    <div className="text-4xl tracking-tighter text-[#FFB000] uppercase italic mb-4 font-black shadow-[0_0_15px_rgba(255,176,0,0.2)]">
-      SYSTEMS <span className="text-white">DASHBOARD</span>
-    </div>
-    
-    <div className="text-[10px] tracking-[0.5em] uppercase italic flex items-center gap-2">
-      {/* Círculo de pulso: Ámbar intenso siempre, parpadea si está activo */}
-      <div className={`h-1.5 w-1.5 rounded-full bg-[#FFB000] ${activeTimer ? 'shadow-[0_0_10px_#FFB000] animate-pulse' : 'opacity-40'}`} />
+    <div className="p-6 md:p-10 min-h-screen bg-[#f1ecfa] dark:bg-[#070511] text-[#1e1248] dark:text-white font-sans overflow-y-auto selection:bg-[#e50051]/10 selection:text-[#e50051]">
       
-      <span className="text-zinc-500">OPERATOR:</span> 
-      <span className="text-white font-bold">{session?.user?.name?.toUpperCase()}</span> 
-      <span className="text-zinc-700">//</span> 
-      
-      {/* Texto de estado en Ámbar */}
-      <span className="text-[#FFB000] font-bold">
-        {activeTimer ? 'LIVE_LINK_ACTIVE' : 'STANDBY_MODE'}
-      </span>
-    </div>
-  </div>
-  
-  {/* Etiqueta de versión en Ámbar sutil */}
-  <div className="text-[7px] text-[#FFB000]/60 border border-[#FFB000]/20 uppercase tracking-[0.5em] px-3 py-1">
-    Martwin_Agent_Core_v5.2
-  </div>
-</header>
+      {/* HEADER CORPORATIVO */}
+      <header className="mb-8 flex justify-between items-center bg-[#fbf9ff] dark:bg-[#0f0a24] p-6 rounded-2xl shadow-sm border border-[#1e1248]/10 dark:border-white/10">
+        <div>
+          <h1 className="text-2xl font-normal tracking-tight text-[#1e1248] dark:text-white flex items-center gap-2">
+            Pago TIC <span className="text-[#e50051]">Systems</span>
+          </h1>
+          <div className="flex items-center gap-3 mt-1">
+            <div className={`h-2 w-2 rounded-full ${activeTimer ? 'bg-[#e50051] animate-ping' : 'bg-gray-300'}`} />
+            <span className="text-[10px] font-normal uppercase tracking-wider text-gray-500">
+              Operador: <span className="text-[#1e1248] dark:text-white">{session?.user?.name || "Invitado"}</span>
+            </span>
+            <span className="text-gray-300">|</span>
+            <span className={`text-[10px] font-normal uppercase tracking-wider ${activeTimer ? 'text-[#e50051]' : 'text-gray-400'}`}>
+              {activeTimer ? 'Conexión Activa' : 'En Espera'}
+            </span>
+          </div>
+        </div>
+        
+        <div className="hidden md:block">
+          <span className="text-[9px] font-normal text-[#1e1248]/40 dark:text-white/40 border border-[#1e1248]/10 dark:border-white/10 px-3 py-1.5 rounded-lg uppercase tracking-widest bg-[#f1ecfa] dark:bg-white/5">
+            Agent Core v6.0
+          </span>
+        </div>
+      </header>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
-        {/* NEURAL LATENCY CARD */}
-        <div className="p-8 border border-[#08646E]/20 bg-[#08646E]/5 rounded-3xl relative">
-          <Activity size={16} className="absolute top-4 right-4 text-[#08646E] opacity-50" />
-          <Zap className="text-[#0ad1ea] mb-4 shadow-[0_0_15px_rgba(10,209,234,0.3)]" size={20} />
-          <div className="text-[8px] tracking-[0.3em] text-zinc-500 mb-2 uppercase">Neural Latency</div>
-          <div className="text-4xl text-white tracking-tighter">{ping}ms</div>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-6">
+        
+        {/* LATENCY CARD */}
+        <div className="p-6 bg-[#fbf9ff] dark:bg-[#0f0a24] border border-[#1e1248]/10 dark:border-white/10 rounded-2xl shadow-sm transition-hover hover:shadow-md">
+          <div className="flex justify-between items-start mb-4">
+            <div className="p-2 bg-[#1e1248]/5 dark:bg-white/5 rounded-lg text-[#1e1248] dark:text-white">
+              <Zap size={18} />
+            </div>
+            <Activity size={14} className="text-gray-300" />
+          </div>
+          <p className="text-xs font-normal text-gray-400 uppercase tracking-wider">Latencia de Red</p>
+          <p className="text-3xl font-normal text-[#1e1248] dark:text-white">{ping}<span className="text-sm ml-1 text-gray-400 font-normal">ms</span></p>
         </div>
 
-        {/* --- CENTRAL STATUS CARD --- */}
-        <div className={`p-8 border rounded-3xl flex flex-col justify-between relative overflow-hidden transition-all duration-700 ${
+        {/* STATUS CARD (DYNAMICA) */}
+        <div className={`col-span-1 md:col-span-2 p-6 rounded-2xl border transition-all duration-500 ${
           activeTimer 
-          ? 'border-[#0ad1ea]/40 bg-[#0ad1ea]/5 shadow-[0_0_50px_rgba(10,209,234,0.1)]' 
-          : 'border-white/5 bg-[#050505]'
+          ? 'border-[#e50051]/20 bg-[#fbf9ff] dark:bg-[#0f0a24] shadow-lg shadow-[#e50051]/5' 
+          : 'border-[#1e1248]/10 dark:border-white/10 bg-[#fbf9ff] dark:bg-[#0f0a24] shadow-sm'
         }`}>
-          <div className="relative z-10 h-full flex flex-col justify-between">
-            <div className="flex justify-between items-start mb-2">
-              <Globe className={activeTimer ? "text-[#0ad1ea] animate-pulse" : "text-[#08646E]"} size={20} />
-              <div className={`px-3 py-1 rounded-full border text-[7px] uppercase tracking-widest ${
-                activeTimer ? 'border-[#0ad1ea] bg-[#0ad1ea]/10 text-[#0ad1ea] shadow-[0_0_10px_rgba(10,209,234,0.2)]' : 'border-zinc-800 bg-zinc-900/50 text-zinc-600'
-              }`}>
-                {activeTimer ? "CORE_RUNNING" : "CORE_IDLE"}
+          <div className="flex justify-between items-center h-full">
+            <div className="space-y-1 flex-1">
+              <div className="flex items-center gap-2 mb-2">
+                <Globe className={activeTimer ? "text-[#e50051] animate-pulse" : "text-gray-300"} size={18} />
+                <span className={`text-[10px] font-normal uppercase tracking-widest px-2 py-0.5 rounded ${
+                   activeTimer ? 'bg-[#e50051] text-white' : 'bg-gray-100 dark:bg-white/10 text-gray-400'
+                }`}>
+                  {activeTimer ? "En Proceso" : "Inactivo"}
+                </span>
               </div>
-            </div>
-
-            {activeTimer ? (
-              <div className="space-y-3">
-                <div className="space-y-1">
-                  <div className="text-1xl text-white uppercase tracking-tight leading-tight">
+              
+              {activeTimer ? (
+                <div>
+                  <h2 className="text-lg font-normal text-[#1e1248] dark:text-white leading-tight mb-1 truncate">
                     {activeTimer.description}
-                  </div>
-                  <div className="flex gap-2 items-center text-[9px] font-bold">
-                    <span className="text-[#0ad1ea] border border-[#0ad1ea]/30 px-2 py-0.5 rounded flex items-center gap-1 bg-[#0ad1ea]/5">
-                      <TagIcon size={7} /> {activeTimer.projectName}
+                  </h2>
+                  <div className="flex items-center gap-3">
+                    <span className="text-[10px] font-normal text-[#e50051] flex items-center gap-1">
+                      <TagIcon size={10} /> {activeTimer.projectName}
                     </span>
-                    <span className="text-zinc-600 tracking-widest italic text-[7px]">SQUAD_SRL // STABLE_UPLINK</span>
+                    <LiveTimer startTime={activeTimer.startTime} />
                   </div>
                 </div>
-                <div className="text-[11px] tracking-tighter text-white/90 leading-none">
-                  <LiveTimer startTime={activeTimer.startTime} />
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                <div className="text-m text-zinc-500 uppercase italic">AWAITING_SYNC</div>
-                <div className="text-[10px] tracking-tighter text-[#08646E] leading-none">
-                  {maxRate} <span className="text-sm opacity-50 font-normal">MBPS</span>
-                </div>
-              </div>
-            )}
+              ) : (
+                <p className="text-gray-400 italic text-sm font-normal uppercase tracking-tight">Listo para sincronizar...</p>
+              )}
+            </div>
+            
+            <div className="text-right ml-4">
+              <p className="text-[10px] font-normal text-gray-400 uppercase tracking-widest mb-1">Peak Rate</p>
+              <p className="text-2xl font-normal text-[#1e1248] dark:text-white">{maxRate}<span className="text-xs ml-1 opacity-40">Mbps</span></p>
+            </div>
           </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
-        {/* NEURAL TRAFFIC CHART */}
-        <div className="lg:col-span-2 p-8 border border-[#08646E]/10 bg-[#050505] rounded-3xl min-h-[350px]">
-          <div className="flex justify-between items-center mb-8">
-            <div className="text-[10px] text-[#08646E] uppercase tracking-widest flex items-center gap-2"><Activity size={14}/> Neural_Traffic</div>
-            <div className="text-2xl text-white font-light tracking-tighter">{netData[netData.length-1]?.down || 0} <span className="text-[10px] text-[#08646E]">MBPS</span></div>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-6 items-start">
+        {/* CHART SECTION */}
+        <div className="lg:col-span-2 h-[220px] sm:h-[240px] xl:h-[260px] p-5 md:p-6 bg-[#fbf9ff] dark:bg-[#0f0a24] border border-[#1e1248]/10 dark:border-white/10 rounded-2xl shadow-sm flex flex-col overflow-hidden">
+          <div className="flex justify-between items-center mb-4 shrink-0">
+            <div className="flex items-center gap-2 font-normal text-xs uppercase tracking-widest text-[#1e1248] dark:text-white">
+              <Activity size={16} className="text-[#e50051]"/> Tráfico de Datos
+            </div>
+            <div className="text-xl md:text-2xl font-normal text-[#1e1248] dark:text-white">
+              {netData[netData.length-1]?.down || 0} 
+              <span className="text-[10px] ml-2 text-gray-400">MBPS</span>
+            </div>
           </div>
-          <div className="h-[200px]">
+          <div className="min-h-0 flex-1">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={netData}>
                 <defs>
-                  <linearGradient id="colorCian" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#0ad1ea" stopOpacity={0.2}/>
-                    <stop offset="95%" stopColor="#0ad1ea" stopOpacity={0}/>
+                  <linearGradient id="colorMagenta" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#e50051" stopOpacity={0.1}/>
+                    <stop offset="95%" stopColor="#e50051" stopOpacity={0}/>
                   </linearGradient>
                 </defs>
-                <Area type="monotone" dataKey="down" stroke="#0ad1ea" strokeWidth={1.5} fill="url(#colorCian)" isAnimationActive={false} />
+                <Area 
+                  type="monotone" 
+                  dataKey="down" 
+                  stroke="#e50051" 
+                  strokeWidth={3} 
+                  fill="url(#colorMagenta)" 
+                  isAnimationActive={false} 
+                />
               </AreaChart>
             </ResponsiveContainer>
           </div>
         </div>
 
-        {/* TERMINAL RADAR */}
-        <div className="p-8 border border-[#08646E]/10 bg-[#0a181d]/10 rounded-3xl flex flex-col min-h-[350px]">
-          <div className="flex items-center gap-3 mb-6 text-[#08646E]">
-            <Terminal size={18} />
-            <div className="text-[8px] tracking-[0.3em] uppercase italic text-zinc-500">Radar_Terminal</div>
+        {/* LOG / HISTORY SECTION */}
+        <div className="h-[220px] sm:h-[240px] xl:h-[260px] p-5 md:p-6 bg-[#1e1248] rounded-2xl shadow-xl flex flex-col text-white overflow-hidden">
+          <div className="flex items-center gap-3 mb-4 shrink-0">
+            <Terminal size={18} className="text-[#e50051]" />
+            <div className="text-[9px] md:text-[10px] font-normal uppercase tracking-[0.16em]">Historial de Actividad</div>
           </div>
-          <div className="flex-1 overflow-y-auto space-y-3 custom-scrollbar pr-2">
+          
+          <div className="flex-1 min-h-0 overflow-y-auto space-y-3 pr-2 custom-scrollbar">
             {isLoadingClockify ? (
-              <div className="text-[6px] opacity-20 italic">Scanning_Frequencies...</div>
+              <div className="flex items-center gap-2 text-xs opacity-50 italic">
+                <Loader2 size={12} className="animate-spin" /> Consultando servidor...
+              </div>
             ) : (
               clockifyEntries.map((e: any) => {
                 const isLive = !e.endTime;
                 return (
-                  <div key={e.id} className={`text-[10px] border-l-2 pl-3 py-2 transition-all rounded-r-lg ${isLive ? 'border-[#0ad1ea] bg-[#0ad1ea]/10' : 'border-[#08646E]/20 bg-black/40 opacity-40'}`}>
-                    <div className="flex justify-between items-start mb-1 text-[6px]">
-                      <span className={`${isLive ? "text-[#0ad1ea] animate-pulse font-bold" : "text-zinc-600"}`}>[{isLive ? "LIVE" : "OFFLINE"}]</span>
-                      <span className="opacity-30 italic">{e.startTime ? new Date(e.startTime).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : '--:--'}</span>
+                  <div key={e.id} className={`group p-3 rounded-xl transition-all border ${
+                    isLive ? 'bg-white/10 border-[#e50051]/30 shadow-lg' : 'bg-black/20 border-transparent opacity-60 hover:opacity-100'
+                  }`}>
+                    <div className="flex justify-between items-start mb-1.5">
+                      <span className={`text-[8px] font-normal px-2 py-0.5 rounded ${
+                        isLive ? 'bg-[#e50051] text-white' : 'bg-gray-700 text-gray-400'
+                      }`}>
+                        {isLive ? "ACTIVO" : "TERMINADO"}
+                      </span>
+                      <span className="text-[9px] font-normal opacity-40 italic">
+                        {e.startTime ? new Date(e.startTime).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : '--:--'}
+                      </span>
                     </div>
-                    <div className={`truncate uppercase ${isLive ? "text-white" : "text-zinc-500"}`}>{e.description}</div>
-                    <div className="text-[6px] text-[#08646E] uppercase italic opacity-60">{e.projectName}</div>
+                    <div className="text-xs font-normal truncate group-hover:text-[#e50051] transition-colors uppercase tracking-tight">
+                      {e.description || "Sin descripción"}
+                    </div>
+                    <div className="text-[9px] mt-1 font-normal text-[#e50051]/70 uppercase">
+                      {e.projectName}
+                    </div>
                   </div>
                 );
               })
@@ -204,9 +229,16 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <button onClick={() => signOut()} className="mt-12 text-[9px] text-zinc-700 hover:text-[#0ad1ea] transition-colors uppercase tracking-[0.5em] italic">
-        Terminate_Session // Disconnect_Core_Interface
-      </button>
+      {/* FOOTER ACTION */}
+      <div className="flex justify-center">
+        <button 
+          onClick={() => signOut()} 
+          className="group flex items-center gap-2 px-6 py-3 text-[10px] font-normal text-gray-400 hover:text-[#e50051] transition-all uppercase tracking-[0.3em]"
+        >
+          <LogOut size={14} className="group-hover:-translate-x-1 transition-transform" />
+          Finalizar Sesión Segura
+        </button>
+      </div>
     </div>
   );
 }

@@ -5,7 +5,7 @@ export const dynamic = "force-dynamic";
 import React, { useState, useEffect, useCallback } from 'react';
 import { useSession } from "next-auth/react";
 import { 
-  Clock, Loader2, Plus, X, Trash2, Save, ChevronRight, Database, ShieldCheck, Terminal 
+  Clock, Loader2, Plus, X, Trash2, Save, ChevronRight, Database, ShieldCheck, Terminal, Calendar as CalendarIcon, ChevronLeft
 } from "lucide-react";
 
 export default function CalendarPage() {
@@ -15,7 +15,6 @@ export default function CalendarPage() {
   const [mounted, setMounted] = useState(false);
   const [events, setEvents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [time, setTime] = useState(""); 
   const [range, setRange] = useState('month');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState("");
@@ -26,10 +25,6 @@ export default function CalendarPage() {
 
   useEffect(() => {
     setMounted(true);
-    const timer = setInterval(() => {
-      setTime(new Date().toLocaleTimeString('es-AR', { hour12: false }));
-    }, 1000);
-    return () => clearInterval(timer);
   }, []);
 
   const fetchCalendar = useCallback(async () => {
@@ -50,7 +45,7 @@ export default function CalendarPage() {
     if (mounted && session) fetchCalendar();
   }, [fetchCalendar, mounted, session]);
 
-  if (!mounted) return <div className="h-screen bg-[#020202]" />;
+  if (!mounted) return <div className="h-screen bg-gray-50" />;
 
   const now = new Date();
   const currentYear = now.getFullYear();
@@ -71,7 +66,7 @@ export default function CalendarPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           id: editingEvent?.id || null,
-          summary: formData.title.toUpperCase(),
+          summary: formData.title,
           start: `${baseDate}T${formData.startTime}:00`,
           end: `${baseDate}T${formData.endTime}:00`,
         }),
@@ -81,29 +76,33 @@ export default function CalendarPage() {
   };
 
   return (
-    <div className="h-screen w-full bg-[#020202] text-zinc-400 font-mono font-extralight select-none flex items-center justify-center p-4 md:p-8">
-      {/* CONTENEDOR CENTRAL AMARILLO */}
-      <div className="w-full max-w-7xl h-full flex flex-col bg-[#050505]/40 border border-yellow-500/10 p-6 md:p-8 shadow-2xl relative overflow-hidden">
+    <div className="h-screen w-full bg-gray-50 text-[#1e1248] font-sans select-none flex items-center justify-center p-4 md:p-8">
+      {/* CONTENEDOR PRINCIPAL */}
+      <div className="w-full max-w-7xl h-full flex flex-col bg-white rounded-[2.5rem] border border-gray-100 shadow-2xl shadow-[#1e1248]/5 overflow-hidden">
         
-        {/* DECORACIÓN AMARILLA */}
-        <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-yellow-500/20 to-transparent" />
-        <div className="absolute bottom-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-yellow-500/20 to-transparent" />
-
-        {/* HEADER */}
-        <header className="mb-6 flex justify-between items-end shrink-0">
-          <section>
-            <div className="text-[8px] tracking-[0.6em] text-yellow-700 uppercase mb-1 font-bold">Terminal_Temporal_Access</div>
-            <h1 className="text-3xl tracking-tighter text-yellow-500 uppercase italic font-black">
-              SQUAD <span className="text-white">AGENDA_LOG</span>
-            </h1>
+        {/* HEADER CORPORATIVO */}
+        <header className="p-8 flex justify-between items-center border-b border-gray-50 bg-white shrink-0">
+          <section className="flex items-center gap-4">
+            <div className="p-3 bg-[#1e1248] rounded-2xl text-white shadow-lg shadow-[#1e1248]/20">
+              <CalendarIcon size={24} />
+            </div>
+            <div>
+              <h1 className="text-2xl font-normal tracking-tight text-[#1e1248] uppercase">
+                Gestión de <span className="text-[#e50051]">Agenda</span>
+              </h1>
+              <div className="flex items-center gap-2">
+                <div className="h-1.5 w-1.5 rounded-full bg-green-500" />
+                <span className="text-[10px] font-normal text-gray-400 uppercase tracking-widest">Sincronización en tiempo real</span>
+              </div>
+            </div>
           </section>
           
-          <nav className="flex bg-black border border-yellow-500/20 p-1">
+          <nav className="flex bg-gray-50 rounded-2xl p-1 border border-gray-100">
             {['today', 'week', 'month'].map((r) => (
               <button 
                 key={r} 
                 onClick={() => setRange(r)} 
-                className={`px-4 py-1.5 text-[10px] uppercase tracking-widest transition-all font-bold ${range === r ? 'bg-yellow-500 text-black shadow-[0_0_15px_#eab308]' : 'text-zinc-600 hover:text-zinc-300'}`}
+                className={`px-6 py-2 rounded-xl text-[10px] uppercase tracking-widest transition-all font-normal ${range === r ? 'bg-white text-[#1e1248] shadow-sm' : 'text-gray-400 hover:text-[#1e1248]'}`}
               >
                 {r}
               </button>
@@ -111,23 +110,23 @@ export default function CalendarPage() {
           </nav>
         </header>
 
-        {/* GRID PRINCIPAL */}
-        <div className="flex-1 min-h-0 w-full border border-yellow-500/10 relative">
+        {/* CUERPO DEL CALENDARIO */}
+        <div className="flex-1 min-h-0 w-full relative bg-white">
           {loading ? (
-            <div className="h-full flex flex-col items-center justify-center bg-black/20">
-              <Loader2 className="animate-spin text-yellow-500 mb-2" size={32} />
-              <div className="text-[10px] tracking-[0.5em] text-yellow-500 animate-pulse">SYNCING_AMBER_SEQUENCE...</div>
+            <div className="h-full flex flex-col items-center justify-center">
+              <Loader2 className="animate-spin text-[#e50051] mb-4" size={48} />
+              <div className="text-[10px] tracking-[0.4em] font-normal text-gray-300 uppercase animate-pulse">Cargando cronograma corporativo...</div>
             </div>
           ) : (
             <div className="h-full flex flex-col">
-              {/* DÍAS SEMANA */}
-              <div className="grid grid-cols-7 shrink-0 bg-black/60">
+              {/* DÍAS DE LA SEMANA */}
+              <div className="grid grid-cols-7 shrink-0 border-b border-gray-50">
                 {['LUN', 'MAR', 'MIE', 'JUE', 'VIE', 'SAB', 'DOM'].map(d => (
-                  <div key={d} className="py-2.5 text-center text-[10px] text-yellow-700 font-black border-b border-yellow-500/10 tracking-widest">{d}</div>
+                  <div key={d} className="py-4 text-center text-[10px] text-gray-400 font-normal tracking-widest">{d}</div>
                 ))}
               </div>
               
-              {/* CUERPO CALENDARIO AMARILLO */}
+              {/* GRILLA DE DÍAS */}
               <div className="grid grid-cols-7 flex-1">
                 {calendarDays.map((day, idx) => {
                   const isCurrentMonth = day > 0 && day <= daysInMonth;
@@ -139,49 +138,45 @@ export default function CalendarPage() {
                   return (
                     <div 
                       key={idx} 
-                      className={`relative p-2 border-r border-b border-yellow-500/10 transition-all flex flex-col group ${
-                        !isCurrentMonth ? 'opacity-5' : 'hover:bg-yellow-500/5'
-                      } ${isToday ? 'bg-yellow-500/5 z-10' : ''}`}
+                      className={`relative p-3 border-r border-b border-gray-50 transition-all flex flex-col group ${
+                        !isCurrentMonth ? 'bg-gray-50/30' : 'hover:bg-gray-50/50'
+                      }`}
                     >
-                      {isToday && (
-                        <>
-                          <div className="absolute inset-0 border border-yellow-500 animate-pulse-yellow" />
-                          <div className="absolute -top-[1px] -left-[1px] w-2 h-2 bg-yellow-500 shadow-[0_0_8px_#f59e0b]" />
-                        </>
-                      )}
-
-                      {isCurrentMonth && (
-                        <>
-                          <div className="flex justify-between items-center mb-1 relative z-20">
-                            <span className={`text-xs font-black ${isToday ? 'text-yellow-400 drop-shadow-[0_0_5px_#f59e0b]' : 'text-yellow-500/60'}`}>
-                              {String(day).padStart(2, '0')}
-                            </span>
-                            <Plus 
-                              onClick={() => { setSelectedDate(dateStr); setIsModalOpen(true); }} 
-                              size={12} 
-                              className="opacity-0 group-hover:opacity-100 text-yellow-500 cursor-pointer hover:scale-125 transition-transform" 
-                            />
+                      <div className="flex justify-between items-start mb-2 relative z-10">
+                        <span className={`text-xs font-normal ${
+                          isToday ? 'bg-[#e50051] text-white w-6 h-6 flex items-center justify-center rounded-lg shadow-lg shadow-[#e50051]/30' : 
+                          isCurrentMonth ? 'text-[#1e1248]' : 'text-gray-200'
+                        }`}>
+                          {isCurrentMonth ? String(day).padStart(2, '0') : ""}
+                        </span>
+                        {isCurrentMonth && (
+                          <button 
+                            onClick={() => { setSelectedDate(dateStr); setIsModalOpen(true); }}
+                            className="opacity-0 group-hover:opacity-100 p-1 bg-gray-100 rounded-lg text-[#1e1248] hover:bg-[#e50051] hover:text-white transition-all"
+                          >
+                            <Plus size={14} />
+                          </button>
+                        )}
+                      </div>
+                      
+                      <div className="flex-1 overflow-y-auto space-y-1 custom-scrollbar pr-1 relative z-10">
+                        {isCurrentMonth && dayEvents.map((e: any) => (
+                          <div 
+                            key={e.id}
+                            onClick={() => {
+                              const start = new Date(e.start?.dateTime || e.start?.date);
+                              const end = new Date(e.end?.dateTime || e.end?.date);
+                              setEditingEvent(e);
+                              setFormData({ title: e.summary, description: e.description || "", startTime: start.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }), endTime: end.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) });
+                              setIsModalOpen(true);
+                            }}
+                            className="text-[9px] bg-white border border-gray-100 text-[#1e1248] px-2 py-1.5 rounded-xl shadow-sm truncate cursor-pointer hover:border-[#e50051]/30 hover:shadow-md transition-all font-normal"
+                          >
+                            <span className="w-1 h-1 bg-[#e50051] rounded-full inline-block mr-1.5" />
+                            {e.summary}
                           </div>
-                          
-                          <div className="flex-1 overflow-y-auto space-y-1 custom-scrollbar pr-1 relative z-20">
-                            {dayEvents.map((e: any) => (
-                              <div 
-                                key={e.id}
-                                onClick={() => {
-                                  const start = new Date(e.start?.dateTime || e.start?.date);
-                                  const end = new Date(e.end?.dateTime || e.end?.date);
-                                  setEditingEvent(e);
-                                  setFormData({ title: e.summary, description: e.description || "", startTime: start.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }), endTime: end.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) });
-                                  setIsModalOpen(true);
-                                }}
-                                className="text-[8px] bg-black/60 border-l border-yellow-500/60 text-yellow-100/70 px-1.5 py-1 truncate cursor-pointer hover:border-yellow-500 hover:bg-yellow-500/20 transition-all uppercase"
-                              >
-                                {e.summary}
-                              </div>
-                            ))}
-                          </div>
-                        </>
-                      )}
+                        ))}
+                      </div>
                     </div>
                   );
                 })}
@@ -190,45 +185,61 @@ export default function CalendarPage() {
           )}
         </div>
 
-        {/* FOOTER AMARILLO */}
-        <footer className="mt-6 flex justify-between items-center shrink-0 border-t border-white/5 pt-4">
-          <div className="flex gap-6 text-[8px] tracking-[0.3em] font-bold">
-            <div className="flex items-center gap-2"><Database size={12} className="text-yellow-800"/> <span>SERVER: <span className="text-yellow-500">READY</span></span></div>
-            <div className="flex items-center gap-2"><ShieldCheck size={12} className="text-yellow-800"/> <span>ENCRYPTION: <span className="text-yellow-500">ENABLED</span></span></div>
+        {/* FOOTER */}
+        <footer className="p-6 bg-gray-50 flex justify-between items-center shrink-0">
+          <div className="flex gap-6 text-[9px] font-normal uppercase tracking-widest text-gray-400">
+            <div className="flex items-center gap-2"><Database size={14} className="text-[#1e1248]"/> <span>Status: <span className="text-[#1e1248]">Cloud_Connected</span></span></div>
+            <div className="flex items-center gap-2"><ShieldCheck size={14} className="text-[#1e1248]"/> <span>Access: <span className="text-[#1e1248]">Encrypted</span></span></div>
           </div>
-          <div className="text-[10px] tracking-[0.5em] text-yellow-500 font-black italic">
-            {time || "00:00:00"}
+          <div className="text-[10px] font-normal text-[#e50051] bg-white px-4 py-1.5 rounded-full shadow-sm">
+            Pago TIC Intelligence v6.0
           </div>
         </footer>
       </div>
 
-      {/* MODAL AMARILLO */}
+      {/* MODAL DE EVENTO */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-[100] flex items-center justify-center p-6">
-          <div className="bg-[#050505] border border-yellow-500/40 w-full max-w-md p-8 shadow-[0_0_50px_rgba(234,179,8,0.1)] relative">
-            <div className="absolute top-0 right-0 p-4">
-               <X onClick={() => setIsModalOpen(false)} className="text-zinc-600 hover:text-white cursor-pointer" size={20} />
-            </div>
-            <h2 className="text-yellow-500 text-xs uppercase font-black tracking-[0.4em] mb-8 flex items-center gap-3">
-              <Terminal size={16} /> Override_Amber_Log
+        <div className="fixed inset-0 bg-[#1e1248]/40 backdrop-blur-md z-[100] flex items-center justify-center p-6">
+          <div className="bg-white border border-gray-100 w-full max-w-md p-8 rounded-[2.5rem] shadow-2xl relative animate-in zoom-in-95 duration-200">
+            <button 
+              onClick={() => setIsModalOpen(false)} 
+              className="absolute top-6 right-6 p-2 hover:bg-gray-100 rounded-full text-gray-400"
+            >
+              <X size={20} />
+            </button>
+            
+            <h2 className="text-[#1e1248] text-sm uppercase font-normal tracking-widest mb-8 flex items-center gap-3">
+              <Plus className="text-[#e50051]" size={18} /> Programar Actividad
             </h2>
+
             <div className="space-y-6">
-              <div className="space-y-1">
-                <label className="text-[8px] text-yellow-700 uppercase tracking-widest font-bold">Protocol_Title</label>
-                <input type="text" value={formData.title} onChange={(e) => setFormData({...formData, title: e.target.value})} className="w-full bg-white/5 border border-white/10 p-3 text-white text-xs outline-none focus:border-yellow-500/50 uppercase" />
+              <div className="space-y-2">
+                <label className="text-[10px] text-gray-400 uppercase font-normal tracking-widest">Asunto del Evento</label>
+                <input 
+                  type="text" 
+                  value={formData.title} 
+                  onChange={(e) => setFormData({...formData, title: e.target.value})} 
+                  placeholder="Ej: Reunión de Estrategia"
+                  className="w-full bg-gray-50 border border-gray-100 rounded-2xl p-4 text-[#1e1248] text-xs outline-none focus:border-[#e50051]/30 focus:ring-4 focus:ring-[#e50051]/5 transition-all font-normal" 
+                />
               </div>
+
               <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="text-[8px] text-yellow-700 uppercase tracking-widest font-bold">Start_Time</label>
-                  <input type="time" value={formData.startTime} onChange={(e) => setFormData({...formData, startTime: e.target.value})} className="w-full bg-white/5 border border-white/10 p-3 text-white text-xs outline-none focus:border-yellow-500/50" />
+                <div className="space-y-2">
+                  <label className="text-[10px] text-gray-400 uppercase font-normal tracking-widest">Inicio</label>
+                  <input type="time" value={formData.startTime} onChange={(e) => setFormData({...formData, startTime: e.target.value})} className="w-full bg-gray-50 border border-gray-100 rounded-2xl p-4 text-[#1e1248] text-xs outline-none focus:border-[#e50051]/30 transition-all" />
                 </div>
-                <div className="space-y-1">
-                  <label className="text-[8px] text-yellow-700 uppercase tracking-widest font-bold">End_Time</label>
-                  <input type="time" value={formData.endTime} onChange={(e) => setFormData({...formData, endTime: e.target.value})} className="w-full bg-white/5 border border-white/10 p-3 text-white text-xs outline-none focus:border-yellow-500/50" />
+                <div className="space-y-2">
+                  <label className="text-[10px] text-gray-400 uppercase font-normal tracking-widest">Fin</label>
+                  <input type="time" value={formData.endTime} onChange={(e) => setFormData({...formData, endTime: e.target.value})} className="w-full bg-gray-50 border border-gray-100 rounded-2xl p-4 text-[#1e1248] text-xs outline-none focus:border-[#e50051]/30 transition-all" />
                 </div>
               </div>
-              <button onClick={handleSave} className="w-full py-4 bg-yellow-500 text-black font-black text-xs uppercase tracking-[0.3em] hover:bg-yellow-400 transition-all shadow-[0_0_20px_rgba(234,179,8,0.3)]">
-                Execute_Amber_Commit
+
+              <button 
+                onClick={handleSave} 
+                className="w-full py-4 bg-[#1e1248] text-white font-normal text-xs uppercase tracking-widest rounded-2xl hover:bg-[#e50051] transition-all shadow-xl shadow-[#1e1248]/20"
+              >
+                Confirmar en Agenda
               </button>
             </div>
           </div>
@@ -236,14 +247,9 @@ export default function CalendarPage() {
       )}
 
       <style jsx global>{`
-        @keyframes pulse-yellow {
-          0%, 100% { border-color: rgba(234, 179, 8, 1); opacity: 1; box-shadow: 0 0 10px rgba(234, 179, 8, 0.2); }
-          50% { border-color: rgba(234, 179, 8, 0.2); opacity: 0.8; box-shadow: 0 0 5px rgba(234, 179, 8, 0.1); }
-        }
-        .animate-pulse-yellow { animation: pulse-yellow 2s infinite ease-in-out; }
-        .custom-scrollbar::-webkit-scrollbar { width: 3px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #eab308; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #1e124810; border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #e5005120; }
       `}</style>
     </div>
   );

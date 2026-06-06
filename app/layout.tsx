@@ -9,8 +9,20 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="es">
-      <body className="bg-black">
+    <html lang="es" suppressHydrationWarning>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              try {
+                localStorage.removeItem('martwin-theme');
+                document.documentElement.classList.toggle('dark', localStorage.getItem('pagotic-theme') === 'dark');
+              } catch (_) {}
+            `,
+          }}
+        />
+      </head>
+      <body>
         <Providers>
           <div className="flex h-screen overflow-hidden">
             <Sidebar />

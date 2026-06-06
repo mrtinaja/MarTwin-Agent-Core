@@ -9,84 +9,98 @@ import path from 'path';
 export const runtime = 'nodejs';
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
+const sectors = [
+  { id: 'REQUIREMENTS', path: 'documentacion/requirements' },
+  { id: 'WORK', path: 'documentacion/work' },
+  { id: 'QA', path: 'documentacion/qa' },
+  { id: 'KNOWLEDGE', path: 'documentacion/knowledge' },
+  { id: 'PROMPTS', path: 'documentacion/prompts' },
+  { id: 'LEGACY_TEST', path: 'documentacion/test' },
+  { id: 'LEGACY_INPUTS', path: 'documentacion/logs_cotizacion' },
+];
+
 export async function POST(req: Request) {
   try {
     const { messages } = await req.json();
     const lastUserMessage = messages[messages.length - 1].content.toLowerCase();
-
-    // 1. SECTORES (Knowledge Nodes) - Mantenemos DRIVE activo
-    const sectors = [
-      { id: 'PROMPTS', path: 'documentacion/prompts', keywords: ['quien soy', 'martwin', 'identidad', 'que haces', 'proyectos'] },
-      { id: 'TEST', path: 'documentacion/test', keywords: ['sql', 'js', 'reporte', 'cajr', 'conr'] },
-      { id: 'LOGS', path: 'documentacion/logs_cotizacion', keywords: ['horas', 'estimacion', 'riesgo'] },
-      { id: 'DRIVE', path: 'cloud/drive_cache', keywords: ['drive', 'nube', 'archivos', 'squad', 'rastrear', 'leer'] } 
-    ];
-
-    let activeIds = sectors.filter(s => s.keywords.some(k => lastUserMessage.includes(k))).map(s => s.id);
-    
-    // Forzado de Identidad y Drive
-    if (lastUserMessage.includes("quien") || lastUserMessage.includes("martwin") || lastUserMessage.includes("drive")) {
-        if (!activeIds.includes('PROMPTS')) activeIds.push('PROMPTS');
-        if (!activeIds.includes('DRIVE')) activeIds.push('DRIVE');
-    }
+    const isBasicInteraction = lastUserMessage.length < 10 &&
+      (['hola', 'status', 'hey', 'inicio'].some(k => lastUserMessage.includes(k)));
 
     let contextFromDocs = "";
+    const fileList: string[] = [];
 
-    for (const sectorId of activeIds) {
-      const cfg = sectors.find(s => s.id === sectorId)!;
-      const fullPath = path.resolve(process.cwd(), cfg.path);
-      
-      if (fs.existsSync(fullPath)) {
+    if (!isBasicInteraction) {
+      const numericMatch = lastUserMessage.match(/\d+/);
+      const targetExtension = lastUserMessage.includes('.js') ? '.js' :
+        lastUserMessage.includes('.ts') ? '.ts' :
+        lastUserMessage.includes('.tsx') ? '.tsx' :
+        lastUserMessage.includes('.md') ? '.md' :
+        lastUserMessage.includes('.json') ? '.json' : null;
+
+      for (const sector of sectors) {
+        const fullPath = path.resolve(process.cwd(), sector.path);
+        if (!fs.existsSync(fullPath)) continue;
+
         const files = fs.readdirSync(fullPath);
-        for (const file of files) {
-          const filePath = path.join(fullPath, file);
-          if (fs.lstatSync(filePath).isDirectory()) continue;
+        const matches = files.filter(f => {
+          const fName = f.toLowerCase();
+          const idMatch = numericMatch ? fName.includes(numericMatch[0]) : true;
+          const extMatch = targetExtension ? fName.endsWith(targetExtension) : true;
+          const nameMatch = lastUserMessage.includes(fName.split('.')[0]);
+          return (idMatch || nameMatch) && extMatch;
+        });
 
-          if (file.startsWith('_') || file.includes('CORE') || lastUserMessage.includes(file.split('.')[0].toLowerCase())) {
-            const content = fs.readFileSync(filePath, 'utf8');
-            contextFromDocs += `\n[NODE: ${sectorId}] [SOURCE: ${file}]\n${content.substring(0, 12000)}\n`;
-          }
+        for (const file of matches) {
+          if (contextFromDocs.length > 65000) break;
+
+          const filePath = path.join(fullPath, file);
+          if (!fs.lstatSync(filePath).isFile()) continue;
+
+          const content = fs.readFileSync(filePath, 'utf8');
+          fileList.push(file);
+          contextFromDocs += `
+<WORKSPACE_OBJECT_ENTRY name="${file}" sector="${sector.id}">
+${content}
+</WORKSPACE_OBJECT_ENTRY>\n`;
+
+          console.log(`[PagoTIC_Context_Load]: Inyectando ${file} (${content.length} bytes)`);
         }
       }
     }
 
-    // 4. PROMPT MAESTRO (CONSCIENCIA INTEGRAL)
-    const systemPrompt = `Eres MarTwin Core V5. Tu cerebro es una Arquitectura Modular Micro-Layered (L1-L5).
+    const systemPrompt = `MODE: IT_DEVELOPMENT_ASSISTANT.
+OPERATOR_ID: MARTIN.
 
-IDENTIDAD CORE (Inviolable):
-- Operador: Martin (Arquitecto Senior Fullstack / Lead de Migración).
-- Contexto Laboral: Squad / Zurich Santander.
-- Estética: Cyberpunk Industrial.
+INSTRUCTIONS:
+- You are Pago TIC IT Development Core, a senior technical assistant for software development in any language.
+- Help with requirements, architecture, frontend, backend, QA, debugging, documentation, automation and technical planning.
+- Use the provided <WORKSPACE_OBJECT_ENTRY> context when it is relevant, and clearly say when the answer depends on local context.
+- If the operator asks for complete local file content and the file is present in context, return it in a code block.
+- AMBIGUITY: If multiple files are detected (${fileList.join(', ')}), ask for clarification BEFORE processing.
+- TEMPERATURE_LOCK: 0.0.
 
-PROTOCOLOS DE ACCESO A DATOS (L3 Microservices):
-1. TIENES ACCESO TOTAL a los archivos locales mediante /api/docs y al DRIVE de Squad mediante /api/drive.
-2. NUNCA digas "No tengo acceso directo a Drive". Si Martin te pide rastrear o leer el Drive, indica que estás accediendo al nodo de persistencia CLOUD_DRIVE (L1) y usa la información de [NODE: DRIVE] inyectada abajo.
-3. Si la información no está en el CONTEXTO_INYECTADO, di: "No detecto el archivo específico en la caché de Drive, ¿desea que fuerce un escaneo binario?".
+FILES_IN_WORKSPACE_BUFFER: ${fileList.join(' | ') || "NONE"}
 
-REGLAS DE VERDAD:
-- No inventes logs si no están en [NODE: LOGS].
-- Usa Español (Arg) para hablar y Español para código.
-
-CONTEXTO_SISTEMICO_INYECTADO:
-${contextFromDocs || "Nodes inactivos. Operando con consciencia base de MarTwin."}
-
-IDENTIDAD_ACTUAL: Senior Squad Member / MarTwin Neural Link.`;
+CURRENT_DATA_STREAM:
+${contextFromDocs || "WAITING_FOR_COMMANDS"}`;
 
     const response = await openai.chat.completions.create({
-      model: 'gpt-4o', 
+      model: 'gpt-4o',
       stream: true,
       messages: [
         { role: 'system', content: systemPrompt },
         ...messages
       ],
-      temperature: 0.15, // Bajamos temp para que no alucine excusas de IA estándar
-      max_tokens: 3000,
+      temperature: 0.0,
+      max_tokens: 8000,
+      presence_penalty: -0.8,
     });
 
     const stream = OpenAIStream(response);
     return new StreamingTextResponse(stream);
 
-  } catch (error: any) {
-    return new Response(JSON.stringify({ error: "UPLINK_BROKEN" }), { status: 500 });
+  } catch (error) {
+    console.error("PAGOTIC_CHAT_FAILURE:", error);
+    return new Response("CHAT_SYSTEM_ERROR", { status: 500 });
   }
 }

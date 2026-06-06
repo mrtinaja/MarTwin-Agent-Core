@@ -29,7 +29,7 @@ export async function POST() {
         currentTasks.push({
           id: `log_${Date.now()}_${importedCount}`,
           title: reportName,
-          category: "MIGRACION",
+          category: "DESARROLLO",
           priority: logContent.future_migration_notes.priority.toUpperCase(),
           completed: false,
           metadata: logContent // Guardamos todo el JSON dentro de la tarea

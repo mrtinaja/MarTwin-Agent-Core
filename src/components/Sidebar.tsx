@@ -1,22 +1,39 @@
 "use client";
 
 import Link from 'next/link';
-import NextImage from 'next/image'; 
+import { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { signIn, signOut, useSession } from "next-auth/react";
-import { 
-  LayoutDashboard, MessageSquareText, Mail, 
+import {
+  LayoutDashboard, MessageSquareText, Mail,
   CalendarDays, HardDrive, FileText, StickyNote,
-  LogOut, RefreshCcw, Briefcase, User, Code2,
-  Zap, Globe, ShieldCheck
+  LogOut, RefreshCcw, Code2,
+  Zap, ShieldCheck, Moon, Sun
 } from 'lucide-react';
 
 export default function Sidebar() {
   const pathname = usePathname();
-  const sessionContext = useSession();
-  const session = sessionContext?.data || null;
+  const { data: session } = useSession();
+  const [isDarkMode, setIsDarkMode] = useState(false);
 
   const isSquad = session?.user?.email?.endsWith('@squad.com.ar');
+
+  useEffect(() => {
+    localStorage.removeItem('martwin-theme');
+    const shouldUseDark = localStorage.getItem('pagotic-theme') === 'dark';
+
+    setIsDarkMode(shouldUseDark);
+    document.documentElement.classList.toggle('dark', shouldUseDark);
+  }, []);
+
+  const toggleDarkMode = () => {
+    setIsDarkMode((currentMode) => {
+      const nextMode = !currentMode;
+      document.documentElement.classList.toggle('dark', nextMode);
+      localStorage.setItem('pagotic-theme', nextMode ? 'dark' : 'light');
+      return nextMode;
+    });
+  };
 
   const links = [
     { href: `/`, label: "Dashboard", icon: LayoutDashboard },
@@ -30,150 +47,162 @@ export default function Sidebar() {
   ];
 
   return (
-    <aside className="w-64 min-w-[256px] h-screen p-6 flex flex-col bg-[#000000] border-r border-white/5 z-50 overflow-hidden font-sans">
-      
-      {/* BRANDING: LOGO.WEBP + MARTWIN SVG */}
-      <div className="flex flex-col items-center justify-center mb-10 mt-2 group px-4">
-        
-       {/* Icono logo.webp */}
-        <div className="mb-2 flex items-center justify-center">
-          <NextImage 
-            src="/logo.webp" 
-            alt="MarTwin Agent Icon"
-            width={48} 
-            height={48} 
-            priority
-            className="object-contain"
-            // ESTO ES LO QUE SOLUCIONA EL WARNING:
-            style={{ width: 'auto', height: 'auto' }}
-            // Cambia también esto para evitar el aviso de deprecación:
-            onLoad={() => console.log("Logo loaded successfully")}
-            onError={() => console.error("Logo failed to load at /logo.webp")}
-          />
-        </div>
+    <aside className="w-64 min-w-[256px] h-screen p-6 flex flex-col bg-[#fbf9ff] dark:bg-[#0f0a24] border-r border-[#1e1248]/10 dark:border-white/10 z-50 overflow-hidden font-sans shadow-[4px_0_24px_rgba(30,18,72,0.05)] dark:shadow-[4px_0_28px_rgba(0,0,0,0.35)] transition-colors duration-300">
 
-        <div className="relative w-full h-16 flex items-center justify-center">
-          <svg viewBox="0 0 300 80" className="w-full h-full object-contain">
-            {/* Main Text: MarTwin */}
-            <text 
-              x="150" y="40" textAnchor="middle" 
-              fontFamily="system-ui, sans-serif" fontWeight="800" fontSize="48" 
-              fill="#08646e" letterSpacing="-1.5"
+      {/* BRANDING */}
+      <div className="flex flex-col items-center justify-center mb-8 mt-2 px-4">
+
+        <div className="relative w-full h-14 flex items-center justify-center">
+          <svg viewBox="0 0 360 95" className="w-full h-full object-contain" role="img" aria-label="Pago TIC">
+            <text
+              x="0" y="61"
+              fontFamily="Raleway, system-ui, sans-serif"
+              fontWeight="200"
+              fontSize="66"
+              letterSpacing="-2.5"
+              className="fill-[#1e1248] dark:fill-white"
             >
-              MarTwin
+              Pago
             </text>
-
-            <line x1="40" y1="52" x2="260" y2="52" stroke="#08646e" strokeWidth="1.5" opacity="0.4" />
-
-            {/* Slogan: CONNECTING INNOVATION */}
-            <text 
-              x="150" y="70" textAnchor="middle" 
-              fontFamily="system-ui, sans-serif" fontWeight="600" fontSize="14" 
-              fill="#e4b32b" letterSpacing="3" className="uppercase"
+            <text
+              x="207" y="61"
+              fontFamily="Raleway, system-ui, sans-serif"
+              fontWeight="400"
+              fontSize="66"
+              letterSpacing="-1"
+              fill="#1e1248"
+              className="dark:fill-white"
             >
-              CONNECTING INNOVATION
+              TIC
             </text>
+            <path
+              d="M205 73 V83 Q205 88 210 88 H346 Q351 88 351 83 V73"
+              fill="none"
+              stroke="#e50051"
+              strokeWidth="9"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
           </svg>
         </div>
-        
-        <div className="mt-4 flex items-center gap-2 px-3 py-1 bg-white/[0.02] border border-white/5 rounded-full">
-          <div className="w-1.5 h-1.5 bg-[#08646e] rounded-full animate-pulse shadow-[0_0_8px_#08646e]"></div>
-          <span className="text-[9px] tracking-[0.3em] text-zinc-500 uppercase font-bold">Stable Link</span>
+
+        <div className="mt-4 flex items-center gap-2 px-3 py-1 bg-[#1e1248]/5 dark:bg-white/5 rounded-full border border-[#1e1248]/5 dark:border-white/10">
+          <div className="w-1.5 h-1.5 bg-[#e50051] rounded-full animate-pulse shadow-[0_0_8px_rgba(229,0,81,0.4)]"></div>
+          <span className="text-[9px] tracking-widest text-[#1e1248]/60 dark:text-white/60 uppercase font-normal">Connected</span>
         </div>
       </div>
-      
-      {/* NAVIGATION SECTORS */}
-      <nav className="flex-1 flex flex-col gap-1 overflow-y-auto pr-2 scrollbar-none">
-        <span className="text-[10px] font-bold text-zinc-600 mb-4 px-4 uppercase tracking-[0.2em]">Navigation</span>
-        
+
+      {/* NAVIGATION */}
+      <nav className="flex-1 flex flex-col gap-1 overflow-y-auto pr-2 custom-scrollbar">
+        <span className="text-[10px] font-normal text-gray-400 dark:text-white/35 mb-3 px-4 uppercase tracking-[0.2em]">Menu Principal</span>
+
         {links.map((link) => {
           const isActive = pathname === link.href;
           const IconComponent = link.icon;
           return (
-            <Link 
-              key={link.href} 
-              href={link.href} 
-              className={`group relative flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-300 ${
-                isActive 
-                  ? 'bg-white/[0.03] text-white border border-white/5 shadow-md shadow-black' 
-                  : 'text-zinc-500 hover:text-zinc-200 hover:bg-white/[0.01]'
+            <Link
+              key={link.href}
+              href={link.href}
+              className={`group relative flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-200 ${
+                isActive
+                  ? 'bg-[#1e1248] text-white shadow-lg shadow-[#1e1248]/20'
+                  : 'text-gray-500 dark:text-white/55 hover:text-[#1e1248] dark:hover:text-white hover:bg-[#f1ecfa] dark:hover:bg-white/5'
               }`}
             >
-              {isActive && (
-                <div className="absolute left-0 w-1 h-5 bg-[#08646e] rounded-full shadow-[0_0_10px_rgba(8,100,110,0.6)]" />
-              )}
-
-              <IconComponent 
-                size={18} 
-                strokeWidth={isActive ? 2 : 1.5}
-                className={isActive ? 'text-[#08646e]' : 'text-zinc-600 group-hover:text-zinc-400'} 
+              <IconComponent
+                size={18}
+                strokeWidth={isActive ? 2.5 : 2}
+                className={isActive ? 'text-[#e50051]' : 'text-gray-400 dark:text-white/35 group-hover:text-[#1e1248] dark:group-hover:text-white'}
               />
 
-              <span className={`text-[13px] tracking-tight transition-all duration-300 ${
-                isActive ? 'font-bold' : 'font-medium'
+              <span className={`text-[13px] tracking-tight ${
+                isActive ? 'font-normal' : 'font-normal'
               }`}>
                 {link.label}
               </span>
+
+              {isActive && (
+                <div className="absolute right-3 w-1.5 h-1.5 bg-[#e50051] rounded-full" />
+              )}
             </Link>
           );
         })}
       </nav>
 
       {/* FOOTER: SESSION & STATUS */}
-      <div className="mt-auto pt-6 border-t border-white/5 flex flex-col gap-4 flex-shrink-0">
+      <div className="mt-auto pt-6 border-t border-[#1e1248]/10 dark:border-white/10 flex flex-col gap-4 flex-shrink-0">
+        <button
+          type="button"
+          onClick={toggleDarkMode}
+          aria-pressed={isDarkMode}
+          aria-label={isDarkMode ? 'Activar modo claro' : 'Activar modo oscuro'}
+          className="flex h-10 w-full items-center justify-between gap-2 rounded-xl border border-[#1e1248]/10 bg-[#f1ecfa] px-3 text-[#1e1248] transition-all hover:border-[#e50051]/30 hover:bg-[#e50051]/5 dark:border-white/10 dark:bg-white/5 dark:text-white dark:hover:bg-[#e50051]/10"
+        >
+          <span className="flex min-w-0 items-center gap-2 text-[8px] font-normal uppercase tracking-[0.14em]">
+            {isDarkMode ? <Moon size={13} className="shrink-0 text-[#e50051]" /> : <Sun size={13} className="shrink-0 text-[#e50051]" />}
+            <span className="truncate">{isDarkMode ? 'Oscuro' : 'Claro'}</span>
+          </span>
+          <span className={`relative h-4 w-8 shrink-0 rounded-full border transition-colors duration-300 ${
+            isDarkMode ? 'bg-[#e50051] border-[#e50051]' : 'bg-[#fbf9ff] border-[#1e1248]/15'
+          }`}>
+            <span className={`absolute left-0.5 top-1/2 h-3 w-3 -translate-y-1/2 rounded-full bg-white shadow-sm transition-transform duration-300 ${
+              isDarkMode ? 'translate-x-4' : 'translate-x-0'
+            }`} />
+          </span>
+        </button>
+
         {!session ? (
-          <button 
+          <button
             onClick={() => signIn('google')}
-            className="flex items-center justify-center gap-3 w-full py-3 bg-[#08646e] hover:bg-[#0a7a87] text-white rounded-xl transition-all shadow-lg shadow-[#08646e]/20 font-bold text-xs uppercase tracking-widest"
+            className="flex items-center justify-center gap-3 w-full py-3 bg-[#e50051] hover:bg-[#c40045] text-white rounded-xl transition-all shadow-lg shadow-[#e50051]/20 font-normal text-[10px] uppercase tracking-widest"
           >
-            <Zap size={15} fill="currentColor" />
-            Connect Agent
+            <Zap size={14} fill="currentColor" />
+            Acceso Agente
           </button>
         ) : (
           <div className="flex flex-col gap-3">
             {/* USER STATUS PLATE */}
-            <div className="flex items-center gap-3 px-3 py-2 bg-[#0a0a0a] border border-white/5 rounded-xl group relative overflow-hidden">
-              <div className={`absolute top-0 left-0 w-full h-[1px] ${isSquad ? 'bg-[#08646e]' : 'bg-[#e4b32b]'}`} />
+            <div className="flex items-center gap-3 px-3 py-3 bg-[#f1ecfa] dark:bg-white/5 border border-[#1e1248]/10 dark:border-white/10 rounded-2xl group">
               <div className="relative flex items-center justify-center">
-                <div className={`w-2 h-2 rounded-full ${isSquad ? 'bg-[#08646e]' : 'bg-[#e4b32b]'} animate-ping absolute opacity-30`} />
-                <div className={`w-2 h-2 rounded-full ${isSquad ? 'bg-[#08646e]' : 'bg-[#e4b32b]'} relative shadow-[0_0_8px_currentColor]`} />
+                <div className={`w-2.5 h-2.5 rounded-full ${isSquad ? 'bg-[#1e1248] dark:bg-white' : 'bg-[#e50051]'} relative border-2 border-white dark:border-[#0f0a24] shadow-sm`} />
               </div>
               <div className="flex flex-col overflow-hidden">
-                <span className="text-[11px] text-white font-bold leading-none mb-1 truncate">
+                <span className="text-xs text-[#1e1248] dark:text-white font-normal leading-none mb-1 truncate uppercase">
                   {session.user?.name?.split(' ')[0]}
                 </span>
-                <span className={`text-[9px] font-black uppercase tracking-tighter ${isSquad ? 'text-[#08646e]' : 'text-[#e4b32b]'}`}>
-                  {isSquad ? 'Squad Unit' : 'Private Mode'}
+                <span className={`text-[8px] font-normal uppercase tracking-widest ${isSquad ? 'text-gray-500 dark:text-white/55' : 'text-[#e50051]'}`}>
+                  {isSquad ? 'Squad Unit' : 'External Access'}
                 </span>
               </div>
-              <ShieldCheck size={16} className="ml-auto text-zinc-800" />
+              <ShieldCheck size={16} className="ml-auto text-gray-300 dark:text-white/25 group-hover:text-[#e50051] transition-colors" />
             </div>
 
-           {/* QUICK ACTIONS - CORREGIDO PARA UNA SOLA FILA */}
-<div className="flex items-center gap-2 w-full">
-  <button 
-    onClick={() => signIn('google', { prompt: 'select_account' })}
-    title="Switch Profile"
-    className="flex-1 flex items-center justify-center py-2 bg-[#0a0a0a] border border-white/5 hover:border-[#08646e]/40 transition-all text-zinc-600 hover:text-white rounded-lg"
-  >
-    <RefreshCcw size={14} />
-    <span className="ml-2 text-[8px] uppercase font-bold tracking-tighter">Switch</span>
-  </button>
-  
-  <button 
-    onClick={() => signOut()}
-    title="Disconnect"
-    className="flex-1 flex items-center justify-center py-2 bg-[#0a0a0a] border border-white/5 hover:border-red-900/30 transition-all text-zinc-600 hover:text-red-400 group rounded-lg"
-  >
-    <LogOut size={14} className="group-hover:-translate-x-1 transition-transform" />
-    <span className="ml-2 text-[8px] uppercase font-bold tracking-tighter">Exit</span>
-  </button>
-</div>
+            {/* QUICK ACTIONS */}
+            <div className="flex items-center gap-2 w-full">
+              <button
+                onClick={() => signIn('google', { prompt: 'select_account' })}
+                className="flex-1 flex items-center justify-center py-2 bg-[#fbf9ff] dark:bg-white/5 border border-[#1e1248]/10 dark:border-white/10 hover:border-[#1e1248] dark:hover:border-[#e50051]/40 transition-all text-gray-400 dark:text-white/35 hover:text-[#1e1248] dark:hover:text-white rounded-xl shadow-sm"
+              >
+                <RefreshCcw size={14} />
+              </button>
+
+              <button
+                onClick={() => signOut()}
+                className="flex-1 flex items-center justify-center py-2 bg-[#fbf9ff] dark:bg-white/5 border border-[#1e1248]/10 dark:border-white/10 hover:border-red-100 dark:hover:border-red-400/30 hover:bg-red-50 dark:hover:bg-red-500/10 transition-all text-gray-400 dark:text-white/35 hover:text-red-500 rounded-xl shadow-sm"
+              >
+                <LogOut size={14} />
+              </button>
+            </div>
           </div>
         )}
 
-        <div className="flex items-center justify-between px-2 opacity-30 mt-1 border-t border-white/5 pt-4">
-            <span className="text-[8px] font-mono text-zinc-600 tracking-tighter uppercase font-bold text-center w-full">SYSTEM_CORE V5.0 // ONLINE</span>
+        <div className="flex flex-col items-center opacity-40 mt-1">
+            <span className="text-[7px] font-normal text-[#1e1248] dark:text-white tracking-[0.3em] uppercase">
+              System Core v6.0
+            </span>
+            <span className="text-[6px] font-normal text-gray-400 dark:text-white/35 uppercase mt-1">
+              Pago TIC Industrial Intelligence
+            </span>
         </div>
       </div>
     </aside>

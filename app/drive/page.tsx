@@ -1,17 +1,15 @@
 "use client";
 
-// 1. Forzamos el modo dinámico para que Next.js no intente pre-renderizarlo sin sesión
 export const dynamic = "force-dynamic";
 
 import React, { useState, useEffect } from 'react';
 import { useSession } from "next-auth/react";
 import { 
   Search, ExternalLink, FileText, Loader2, Plus, 
-  Database, ShieldCheck, Activity, CloudCog, Lock 
+  Database, ShieldCheck, Activity, CloudCog, Lock, FolderOpen, UploadCloud
 } from "lucide-react";
 
 export default function DrivePage() {
-  // 🟢 CORRECCIÓN DE SEGURIDAD: Evitamos desestructurar directamente
   const sessionContext = useSession();
   const session = sessionContext?.data;
   
@@ -21,13 +19,12 @@ export default function DrivePage() {
   const [uploading, setUploading] = useState(false);
   const [mounted, setMounted] = useState(false);
 
-  // Aseguramos que el componente esté montado en el cliente
   useEffect(() => {
     setMounted(true);
   }, []);
 
   async function fetchDrive(query = "") {
-    if (!session) return; // No intentamos fetch sin sesión
+    if (!session) return;
     setLoading(true);
     try {
       const res = await fetch(`/api/drive/count?q=${query}`);
@@ -41,7 +38,6 @@ export default function DrivePage() {
   }
 
   useEffect(() => {
-    // Solo ejecutamos si estamos en el cliente y hay sesión
     if (mounted && session) {
       fetchDrive();
     }
@@ -60,50 +56,44 @@ export default function DrivePage() {
     }
   };
 
-  // 🟢 RENDERIZADO DEFENSIVO: Si no está montado, devolvemos un cascarón vacío
-  // Esto evita el error de "Hydration Mismatch" y errores de Prerendering
   if (!mounted) {
-    return <div className="min-h-screen bg-[#020202]" />;
+    return <div className="min-h-screen bg-gray-50" />;
   }
 
   return (
-    <div className="p-12 min-h-screen bg-[#020202] text-zinc-400 font-mono select-none">
-      {/* SCANLINE OVERLAY */}
-      <div 
-        className="fixed inset-0 pointer-events-none opacity-[0.03] z-50"
-        style={{
-          backgroundImage: `linear-gradient(rgba(18,16,16,0) 50%, rgba(0,0,0,0.25) 50%), linear-gradient(90deg, rgba(0,255,255,0.02), rgba(255,176,0,0.02))`,
-          backgroundSize: '100% 4px, 4px 100%'
-        }}
-      />
-
-      <header className="mb-12 flex justify-between items-end border-b border-[#088395]/20 pb-8">
+    <div className="p-8 md:p-12 min-h-screen bg-gray-50 text-[#1e1248] font-sans">
+      
+      {/* HEADER CORPORATIVO */}
+      <header className="mb-12 flex flex-col md:flex-row justify-between items-start md:items-end gap-6 border-b border-gray-200 pb-10">
         <div>
-          <div className="flex items-center gap-3 mb-3">
-            <CloudCog size={18} className="text-[#088395] animate-pulse" />
-            <span className="text-[10px] tracking-[0.6em] text-[#088395] font-black uppercase italic">MarTwin_Cloud_Access</span>
+          <div className="flex items-center gap-3 mb-4">
+            <div className="p-2 bg-[#1e1248]/5 rounded-lg text-[#1e1248]">
+              <CloudCog size={18} />
+            </div>
+            <span className="text-[10px] font-normal tracking-[0.3em] text-[#1e1248]/40 uppercase">Infraestructura Cloud</span>
           </div>
-          <h1 className="text-5xl tracking-tighter text-white font-black uppercase italic leading-none">
-            SQUAD <span className="text-[#FFB000] not-italic">ASSETS</span>
+          <h1 className="text-4xl md:text-5xl tracking-tighter text-[#1e1248] font-normal uppercase">
+            Gestión de <span className="text-[#e50051]">Activos</span>
           </h1>
         </div>
         
-        <label className="relative group overflow-hidden bg-[#FFB000] text-black px-10 py-4 rounded-none cursor-pointer transition-all hover:bg-white active:scale-95">
-          <div className="flex items-center gap-3 text-[11px] tracking-[0.3em] uppercase font-black italic">
-            {uploading ? <Loader2 className="animate-spin" size={16} /> : <Plus size={16} />}
-            {uploading ? "SYNCING..." : "ATTACH_ASSET"}
+        <label className="relative group overflow-hidden bg-[#e50051] text-white px-8 py-4 rounded-2xl cursor-pointer transition-all hover:bg-[#c40045] hover:shadow-xl hover:shadow-[#e50051]/20 active:scale-95 shadow-lg shadow-[#e50051]/10">
+          <div className="flex items-center gap-3 text-xs tracking-widest uppercase font-normal">
+            {uploading ? <Loader2 className="animate-spin" size={18} /> : <UploadCloud size={18} />}
+            {uploading ? "Sincronizando..." : "Subir Archivo"}
           </div>
           <input type="file" className="hidden" onChange={handleUpload} disabled={uploading} />
         </label>
       </header>
 
-      <div className="relative mb-16 max-w-4xl">
-        <div className="relative flex items-center">
-          <Search className="absolute left-6 text-[#088395]" size={20} />
+      {/* BARRA DE BÚSQUEDA */}
+      <div className="relative mb-12 max-w-3xl">
+        <div className="relative flex items-center group">
+          <Search className="absolute left-6 text-gray-300 group-focus-within:text-[#e50051] transition-colors" size={20} />
           <input 
             type="text" 
-            placeholder="// INJECT_QUERY..."
-            className="w-full bg-black border border-[#088395]/30 rounded-none py-6 pl-16 pr-6 text-[12px] tracking-[0.2em] focus:border-[#FFB000] outline-none text-white uppercase italic"
+            placeholder="Buscar por nombre de archivo o extensión..."
+            className="w-full bg-white border border-gray-100 rounded-[2rem] py-6 pl-16 pr-8 text-sm font-normal shadow-sm focus:border-[#1e1248]/20 focus:ring-4 focus:ring-[#1e1248]/5 outline-none text-[#1e1248] transition-all"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && fetchDrive(search)}
@@ -111,43 +101,70 @@ export default function DrivePage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-8">
+      {/* GRILLA DE ARCHIVOS */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-6">
         {loading ? (
-          <div className="col-span-full text-center py-40 border border-[#088395]/10 bg-black/40">
-            <Loader2 className="animate-spin inline-block mb-6 text-[#088395]" size={40} />
-            <div className="text-[12px] tracking-[0.8em] uppercase text-[#088395] font-black animate-pulse">Fetching_Nodes...</div>
+          <div className="col-span-full flex flex-col items-center justify-center py-40 bg-white border border-gray-100 rounded-[2.5rem] shadow-sm">
+            <Loader2 className="animate-spin mb-6 text-[#e50051]" size={48} />
+            <div className="text-[11px] tracking-[0.4em] uppercase text-gray-400 font-normal animate-pulse">Consultando Repositorios...</div>
+          </div>
+        ) : files.length === 0 ? (
+          <div className="col-span-full flex flex-col items-center justify-center py-32 bg-white border border-gray-100 rounded-[2.5rem] border-dashed">
+            <FolderOpen size={48} className="text-gray-100 mb-4" />
+            <p className="text-sm font-normal text-gray-300 uppercase tracking-widest">No se encontraron activos</p>
           </div>
         ) : (
           files.map((file) => (
             <div 
               key={file.id} 
-              className="relative group cursor-pointer"
+              className="group bg-white border border-gray-100 rounded-[2rem] p-6 transition-all hover:shadow-2xl hover:shadow-[#1e1248]/5 hover:-translate-y-1 cursor-pointer flex flex-col justify-between h-64 overflow-hidden relative shadow-sm"
               onClick={() => window.open(file.webViewLink, '_blank')}
             >
-              <div className="p-8 border border-white/5 bg-[#050505] relative flex flex-col justify-between h-48 transition-all group-hover:border-[#088395]/50 group-hover:bg-[#088395]/5">
-                <div className="flex justify-between items-start">
-                  <div className="p-4 bg-black border border-[#088395]/30 text-[#088395] group-hover:text-[#FFB000] transition-all">
-                    <FileText size={22} />
-                  </div>
-                  <ExternalLink size={18} className="text-zinc-800 group-hover:text-[#FFB000]" />
+              <div className="flex justify-between items-start mb-4">
+                <div className="p-4 bg-gray-50 rounded-2xl text-[#1e1248] group-hover:bg-[#e50051] group-hover:text-white transition-all duration-300">
+                  <FileText size={24} />
                 </div>
-                <div className="mt-6">
-                  <h3 className="text-[13px] text-white font-black truncate uppercase tracking-widest mb-3 italic">
-                    {file.name}
-                  </h3>
-                  <div className="flex justify-between items-center border-t border-white/5 pt-4">
-                    <p className="text-[9px] text-zinc-600 uppercase font-bold flex items-center gap-2">
-                      <Activity size={10} className="text-[#088395]" /> 
-                      REV: {new Date(file.modifiedTime).toLocaleDateString('es-AR')}
-                    </p>
-                    <Lock size={10} className="text-[#FFB000]" />
-                  </div>
+                <div className="p-2 bg-gray-50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
+                  <ExternalLink size={14} className="text-[#1e1248]" />
                 </div>
               </div>
+
+              <div>
+                <h3 className="text-sm text-[#1e1248] font-normal line-clamp-2 uppercase tracking-tight mb-4 group-hover:text-[#e50051] transition-colors leading-tight">
+                  {file.name}
+                </h3>
+                
+                <div className="flex justify-between items-center border-t border-gray-50 pt-4">
+                  <div className="flex items-center gap-2">
+                    <Activity size={12} className="text-[#e50051]" />
+                    <span className="text-[9px] font-normal text-gray-400 uppercase tracking-tighter">
+                      Modificado: {new Date(file.modifiedTime).toLocaleDateString('es-AR')}
+                    </span>
+                  </div>
+                  <Lock size={12} className="text-gray-200 group-hover:text-[#1e1248] transition-colors" />
+                </div>
+              </div>
+
+              {/* Indicador visual inferior */}
+              <div className="absolute bottom-0 left-0 w-0 h-1 bg-[#e50051] group-hover:w-full transition-all duration-500" />
             </div>
           ))
         )}
       </div>
+
+      {/* FOOTER CORPORATIVO */}
+      <footer className="mt-20 pt-10 border-t border-gray-100 flex justify-center opacity-30">
+        <div className="flex items-center gap-3">
+          <ShieldCheck size={14} />
+          <span className="text-[9px] font-normal uppercase tracking-[0.4em]">Almacenamiento Seguro Pago TIC // Cifrado AES-256</span>
+        </div>
+      </footer>
+
+      <style jsx global>{`
+        .custom-scrollbar::-webkit-scrollbar { width: 5px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #1e124810; border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #e5005120; }
+      `}</style>
     </div>
   );
 }

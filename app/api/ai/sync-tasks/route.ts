@@ -61,7 +61,7 @@ export async function POST() {
           // Generamos ID único basado en el nombre y timestamp
           id: `trm_${processedCount}_${Date.now()}`,
           title: reportName.toUpperCase(),
-          category: logData.category || "MIGRACION",
+          category: logData.category || "DESARROLLO",
           priority: priorityValue,
           completed: false,
           metadata: logData 

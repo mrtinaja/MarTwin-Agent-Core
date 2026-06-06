@@ -1,56 +1,210 @@
-@tailwind base;
+﻿@tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+@font-face {
+  font-family: 'Raleway';
+  src: url('/fonts/Raleway-ExtraLight.ttf') format('truetype');
+  font-weight: 200 400;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
-  --background: #000000;      /* Fondo Negro Puro */
-  --foreground: #f0e68c;      /* Amarillo suave (Arena) */
-  --accent-turquesa: #08646E; /* Tu Turquesa Zurich */
-  --border-dim: rgba(8, 100, 110, 0.2);
+  /* Paleta corporativa Pago TIC */
+  --background: #f5f1fb;      /* Fondo lavanda claro, menos luminoso que blanco puro */
+  --foreground: #1e1248;      /* Azul Profundo (Confianza y Autoridad) */
+  --accent-magenta: #e50051;  /* Magenta (EnergÃ­a y AcciÃ³n) */
+  --accent-navy: #1e1248;     /* Azul para elementos estructurales */
+  
+  --surface: #fbf9ff;
+  --surface-muted: #f1ecfa;
+  --border-soft: rgba(30, 18, 72, 0.12);
+  --selection-bg: rgba(229, 0, 81, 0.1);
+}
+
+html {
+  color-scheme: light;
+}
+
+html.dark {
+  color-scheme: dark;
+  --background: #070511;
+  --foreground: #f8f7ff;
+  --accent-navy: #f8f7ff;
+  --border-soft: rgba(255, 255, 255, 0.12);
+  --selection-bg: rgba(229, 0, 81, 0.25);
 }
 
 body {
   color: var(--foreground);
   background-color: var(--background);
-  font-family: 'Inter', system-ui, sans-serif;
-  font-weight: 200;
-  letter-spacing: 0.05em;
-  -webkit-font-smoothing: antialiased; /* Para que la letra sea ultra fina */
+  font-family: 'Raleway', system-ui, sans-serif;
+  /* Ajuste de peso para legibilidad corporativa */
+  font-weight: 200; 
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 @layer base {
-  /* Forzamos a que todos los bordes por defecto sean turquesas tenues */
-  border {
-    border-color: var(--border-dim);
+  /* Bordes sutiles en el azul de la marca */
+  * {
+    border-color: var(--border-soft);
   }
   
-  /* Los títulos y textos importantes en Amarillo Arena */
+  /* Titulos sobrios: azul profundo y peso medio */
   h1, h2, h3, h4 {
-    color: var(--foreground);
-    font-weight: 200;
+    color: var(--accent-navy);
+    font-weight: 400;
+    letter-spacing: -0.02em;
+  }
+
+  strong,
+  b {
+    font-weight: 400;
+  }
+
+  /* SelecciÃ³n de texto personalizada con el magenta */
+  ::selection {
+    background-color: var(--selection-bg);
+    color: var(--accent-magenta);
   }
 }
 
 @layer components {
-  /* Clase personalizada para tus bordes amarillos si los necesitás */
-  .border-arena {
-    border-color: rgba(240, 230, 140, 0.2);
+  /* Boton principal con el magenta Pago TIC */
+  .btn-primary {
+    background-color: var(--accent-magenta);
+    color: white;
+    padding: 0.5rem 1.5rem;
+    border-radius: 0.375rem;
+    transition: all 0.3s ease;
   }
 
-  /* Clase para el resplandor turquesa en hover */
-  .glow-turquesa {
-    box-shadow: 0 0 20px rgba(8, 100, 110, 0.3);
+  .btn-primary:hover {
+    filter: brightness(110%);
+    box-shadow: 0 4px 12px rgba(229, 0, 81, 0.3);
+  }
+
+  /* Clase para destacar bordes en el azul corporativo */
+  .border-corporate {
+    border-color: var(--accent-navy);
+  }
+
+  /* Glow sutil para tarjetas o estados activos */
+  .glow-magenta {
+    box-shadow: 0 0 20px rgba(229, 0, 81, 0.15);
   }
 }
 
-/* Scrollbar minimalista Turquesa */
+/* Scrollbar Corporativa Refinada */
 ::-webkit-scrollbar {
-  width: 4px;
+  width: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: #000;
+  background: #f1f1f1;
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--accent-turquesa);
+  background: var(--accent-navy);
   border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-magenta);
+}
+
+html.dark ::-webkit-scrollbar-track {
+  background: #0f0a24;
+}
+
+html.dark ::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+html.dark ::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-magenta);
+}
+
+/* Adaptacion global para modo claro sin blanco puro */
+html:not(.dark) main .bg-white {
+  background-color: var(--surface);
+}
+
+html:not(.dark) main .bg-gray-50,
+html:not(.dark) main .bg-gray-50\/30,
+html:not(.dark) main .bg-gray-50\/50 {
+  background-color: var(--surface-muted);
+}
+
+html:not(.dark) main .bg-gray-100 {
+  background-color: rgba(30, 18, 72, 0.08);
+}
+
+html:not(.dark) main .border-gray-50,
+html:not(.dark) main .border-gray-100,
+html:not(.dark) main .border-gray-200 {
+  border-color: rgba(30, 18, 72, 0.11);
+}
+
+html:not(.dark) main .shadow-sm,
+html:not(.dark) main .shadow-md,
+html:not(.dark) main .shadow-xl,
+html:not(.dark) main .shadow-2xl {
+  --tw-shadow-color: rgba(30, 18, 72, 0.08);
+}
+
+/* Adaptacion global para pantallas que todavia usan utilidades claras fijas */
+html.dark main .bg-white {
+  background-color: #0f0a24;
+}
+
+html.dark main .bg-gray-50,
+html.dark main .bg-gray-50\/30,
+html.dark main .bg-gray-50\/50 {
+  background-color: #070511;
+}
+
+html.dark main .bg-gray-100 {
+  background-color: rgba(255, 255, 255, 0.08);
+}
+
+html.dark main .border-gray-50,
+html.dark main .border-gray-100,
+html.dark main .border-gray-200 {
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+html.dark main .text-\[\#1e1248\] {
+  color: #f8f7ff;
+}
+
+html.dark main .text-\[\#1e1248\]\/40 {
+  color: rgba(248, 247, 255, 0.4);
+}
+
+html.dark main .text-\[\#1e1248\]\/60,
+html.dark main .text-\[\#1e1248\]\/70,
+html.dark main .text-\[\#1e1248\]\/80 {
+  color: rgba(248, 247, 255, 0.72);
+}
+
+html.dark main .text-gray-300,
+html.dark main .text-gray-400,
+html.dark main .text-gray-500 {
+  color: rgba(248, 247, 255, 0.48);
+}
+
+html.dark main .hover\:bg-gray-50:hover,
+html.dark main .hover\:bg-gray-100:hover {
+  background-color: rgba(255, 255, 255, 0.07);
+}
+
+html.dark main .hover\:text-\[\#1e1248\]:hover {
+  color: #ffffff;
+}
+
+html.dark main input,
+html.dark main textarea,
+html.dark main select {
+  color-scheme: dark;
 }

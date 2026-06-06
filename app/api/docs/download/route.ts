@@ -11,11 +11,16 @@ export async function GET(req: Request) {
   const root = process.cwd();
   const paths = [
     path.join(root, 'documentacion', fileName),
+    path.join(root, 'documentacion', 'requirements', fileName),
+    path.join(root, 'documentacion', 'work', fileName),
+    path.join(root, 'documentacion', 'qa', fileName),
+    path.join(root, 'documentacion', 'knowledge', fileName),
+    path.join(root, 'documentacion', 'prompts', fileName),
     path.join(root, 'documentacion', 'test', fileName),
     path.join(root, 'documentacion', 'logs_cotizacion', fileName)
   ];
 
-  // Buscamos el archivo en las 3 carpetas
+  // Buscamos el archivo en las carpetas actuales y en las heredadas.
   let filePath = paths.find(p => fs.existsSync(p));
 
   if (!filePath) return new Response("Archivo no encontrado", { status: 404 });

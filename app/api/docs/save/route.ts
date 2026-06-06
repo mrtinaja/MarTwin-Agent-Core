@@ -5,51 +5,53 @@ import { NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
 
+const resolveDocumentTarget = (type: string) => {
+  const normalizedType = type.toLowerCase().trim();
+
+  if (normalizedType.includes('prompt')) return { subFolder: 'prompts', extension: '.md' };
+  if (normalizedType.includes('requirement') || normalizedType.includes('requerimiento') || normalizedType.includes('input') || normalizedType.includes('cotizacion')) {
+    return { subFolder: 'requirements', extension: normalizedType.includes('json') || normalizedType.includes('cotizacion') ? '.json' : '.md' };
+  }
+  if (normalizedType.includes('qa') || normalizedType.includes('test') || normalizedType.includes('validacion')) {
+    return { subFolder: 'qa', extension: '.md' };
+  }
+  if (normalizedType.includes('knowledge') || normalizedType.includes('conocimiento')) {
+    return { subFolder: 'knowledge', extension: '.md' };
+  }
+  if (normalizedType.includes('work') || normalizedType.includes('desarrollo') || normalizedType.includes('artefacto') || normalizedType.includes('migracion')) {
+    return { subFolder: 'work', extension: '.md' };
+  }
+
+  return { subFolder: 'work', extension: '.md' };
+};
+
 export async function POST(req: Request) {
   try {
     const { title, content, type } = await req.json();
     const root = process.cwd();
+    const { subFolder, extension } = resolveDocumentTarget(type || "");
 
-    // Normalizamos el tipo para evitar errores de mayúsculas o espacios
-    const normalizedType = type ? type.toLowerCase().trim() : "";
-    
-    let subFolder = "";
-    let extension = ".md";
-
-    // Mapeo ultra-seguro
-    if (normalizedType.includes('prompt')) {
-      subFolder = 'prompts';
-    } else if (normalizedType.includes('cotizacion')) {
-      subFolder = 'logs_cotizacion';
-      extension = ".json";
-    } else if (normalizedType.includes('test')) {
-      subFolder = 'test';
-    }
-
-    // Construcción de la ruta
     const targetDir = path.join(root, 'documentacion', subFolder);
-    const filePath = path.join(targetDir, `${title}${extension}`);
+    const safeTitle = path.basename(title || 'documento');
+    const filePath = path.join(targetDir, `${safeTitle}${path.extname(safeTitle) ? '' : extension}`);
 
-    // LOG DE CONTROL (Mirá la terminal de VS Code al guardar)
     console.log(`DEBUG_SAVE: Recibido Tipo "${type}" -> Guardando en "${subFolder}"`);
 
     if (!fs.existsSync(targetDir)) {
       fs.mkdirSync(targetDir, { recursive: true });
     }
 
-    // Si existía una versión "suelta" en la raíz por error, la borramos para no confundir
-    const strayFile = path.join(root, 'documentacion', `${title}${extension}`);
+    const strayFile = path.join(root, 'documentacion', `${safeTitle}${path.extname(safeTitle) ? '' : extension}`);
     if (subFolder !== "" && fs.existsSync(strayFile)) {
       fs.unlinkSync(strayFile);
-      console.log(`🧹 Borrado archivo suelto: ${strayFile}`);
+      console.log(`CLEANUP: Borrado archivo suelto: ${strayFile}`);
     }
 
     fs.writeFileSync(filePath, content, 'utf8');
 
     return NextResponse.json({ success: true, savedAt: subFolder });
-
   } catch (error: any) {
-    console.error("🔥 Error en Save:", error);
+    console.error("Error en Save:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
