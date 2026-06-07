@@ -2,7 +2,14 @@
 
 export const dynamic = "force-dynamic";
 
-import { useRef, useEffect, useState, useCallback } from "react";
+import {
+  useRef,
+  useEffect,
+  useState,
+  useCallback,
+  type ReactNode,
+  type HTMLAttributes,
+} from "react";
 import {
   BrainCircuit,
   Activity,
@@ -29,6 +36,8 @@ type UploadedFile = {
   dataUrl: string;
 };
 
+type FileTaskMode = "analysis" | "visual";
+
 type ChatMessage = {
   id: string;
   role: ChatRole;
@@ -42,6 +51,12 @@ type CodeBlockProps = {
   onCopy: (code: string, id: string) => void;
   copiedId: string | null;
   blockId: string;
+};
+
+type MarkdownCodeProps = HTMLAttributes<HTMLElement> & {
+  inline?: boolean;
+  className?: string;
+  children?: ReactNode;
 };
 
 const initialMessages: ChatMessage[] = [
@@ -167,6 +182,37 @@ function replaceAssetReferences(htmlOrCss: string, assets: UploadedFile[]) {
   return nextValue;
 }
 
+function stripExternalGeneratedReferences(html: string) {
+  let nextHtml = html;
+
+  nextHtml = nextHtml.replace(
+    /<link\b[^>]*rel=["']?stylesheet["']?[^>]*>/gi,
+    ""
+  );
+
+  nextHtml = nextHtml.replace(
+    /<link\b[^>]*href=["'][^"']*\.(css|js)["'][^>]*>/gi,
+    ""
+  );
+
+  nextHtml = nextHtml.replace(
+    /<script\b[^>]*src=["'][^"']+["'][^>]*><\/script>/gi,
+    ""
+  );
+
+  nextHtml = nextHtml.replace(
+    /<script\b[^>]*src=["'][^"']+["'][^>]*\/?>/gi,
+    ""
+  );
+
+  nextHtml = nextHtml.replace(
+    /\s(?:href|src)=["'](?:\.\/|\/)?(?:style\.css|styles\.css|main\.css|app\.css|script\.js|main\.js|app\.js)["']/gi,
+    ""
+  );
+
+  return nextHtml;
+}
+
 function neutralizeUnknownImageSources(html: string, assets: UploadedFile[]) {
   const assetNames = assets
     .filter((asset) => asset.type.startsWith("image/"))
@@ -190,8 +236,37 @@ function neutralizeUnknownImageSources(html: string, assets: UploadedFile[]) {
 
       const safeTitle = String(src).replace(/"/g, "&quot;");
 
-      return `<span class="missing-generated-asset" title="Asset no disponible: ${safeTitle}"></span>`;
+      return `<span${beforeSrc}${afterSrc} class="missing-generated-asset" title="Asset no disponible: ${safeTitle}"></span>`;
     }
+  );
+}
+
+function sanitizeGeneratedCss(css: string) {
+  let nextCss = css;
+
+  nextCss = nextCss.replace(/@import\s+url\([^)]*\)\s*;?/gi, "");
+  nextCss = nextCss.replace(/@import\s+["'][^"']+["']\s*;?/gi, "");
+
+  nextCss = nextCss.replace(
+    /url\(["']?(?:\.\/|\/)?(?:style\.css|styles\.css|main\.css|app\.css|script\.js|main\.js|app\.js)["']?\)/gi,
+    "none"
+  );
+
+  return nextCss;
+}
+
+function shouldUseWidePreview(content: string) {
+  const lowerContent = content.toLowerCase();
+
+  return (
+    lowerContent.includes("logo") ||
+    lowerContent.includes("splash") ||
+    lowerContent.includes("brand") ||
+    lowerContent.includes("banner") ||
+    lowerContent.includes("placa") ||
+    lowerContent.includes("maja") ||
+    lowerContent.includes("diseño") ||
+    lowerContent.includes("<img")
   );
 }
 
@@ -202,8 +277,13 @@ function buildPreviewHtml(content: string, assets: UploadedFile[] = []) {
   if (!rawHtml && !rawCss) return "";
 
   const htmlWithAssets = replaceAssetReferences(rawHtml, assets);
-  const html = neutralizeUnknownImageSources(htmlWithAssets, assets);
-  const css = replaceAssetReferences(rawCss, assets);
+  const htmlWithoutExternalRefs = stripExternalGeneratedReferences(
+    htmlWithAssets
+  );
+  const html = neutralizeUnknownImageSources(htmlWithoutExternalRefs, assets);
+
+  const cssWithAssets = replaceAssetReferences(rawCss, assets);
+  const css = sanitizeGeneratedCss(cssWithAssets);
 
   const baseCss = `
     * {
@@ -216,7 +296,7 @@ function buildPreviewHtml(content: string, assets: UploadedFile[] = []) {
       min-height: 100vh;
       font-family: Arial, sans-serif;
       background: #ffffff;
-      overflow-x: hidden;
+      overflow-x: auto;
     }
 
     img {
@@ -234,28 +314,29 @@ function buildPreviewHtml(content: string, assets: UploadedFile[] = []) {
     }
   `;
 
+  const finalCss = `${baseCss}\n${css}`;
+
   const htmlHasDocument =
     html.toLowerCase().includes("<!doctype") ||
     html.toLowerCase().includes("<html");
 
   if (htmlHasDocument) {
     let finalHtml = html;
-    const finalCss = `${baseCss}\n${css}`;
 
-    if (finalCss.trim()) {
-      if (finalHtml.toLowerCase().includes("</head>")) {
-        finalHtml = finalHtml.replace(
-          "</head>",
-          `<style>${finalCss}</style></head>`
-        );
-      } else if (finalHtml.toLowerCase().includes("<body")) {
-        finalHtml = finalHtml.replace(
-          /<body([^>]*)>/i,
-          `<head><style>${finalCss}</style></head><body$1>`
-        );
-      } else {
-        finalHtml = `${finalHtml}<style>${finalCss}</style>`;
-      }
+    finalHtml = stripExternalGeneratedReferences(finalHtml);
+
+    if (finalHtml.toLowerCase().includes("</head>")) {
+      finalHtml = finalHtml.replace(
+        /<\/head>/i,
+        `<style>${finalCss}</style></head>`
+      );
+    } else if (finalHtml.toLowerCase().includes("<body")) {
+      finalHtml = finalHtml.replace(
+        /<body([^>]*)>/i,
+        `<head><style>${finalCss}</style></head><body$1>`
+      );
+    } else {
+      finalHtml = `${finalHtml}<style>${finalCss}</style>`;
     }
 
     return finalHtml;
@@ -269,9 +350,7 @@ function buildPreviewHtml(content: string, assets: UploadedFile[] = []) {
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
   <style>
-    ${baseCss}
-
-    ${css}
+    ${finalCss}
   </style>
 </head>
 
@@ -292,6 +371,8 @@ const HtmlPreview = ({
   const previewHtml = buildPreviewHtml(content, assets);
 
   if (!previewHtml) return null;
+
+  const widePreview = shouldUseWidePreview(content);
 
   const openPreview = () => {
     const previewWindow = window.open("", "_blank");
@@ -330,7 +411,11 @@ const HtmlPreview = ({
             title="HTML Preview"
             srcDoc={previewHtml}
             sandbox="allow-scripts"
-            className="h-[760px] w-[390px] rounded-[1.5rem] bg-white"
+            className={
+              widePreview
+                ? "h-[720px] w-[960px] max-w-[calc(100vw-9rem)] rounded-[1.5rem] bg-white"
+                : "h-[760px] w-[390px] rounded-[1.5rem] bg-white"
+            }
           />
         </div>
       </div>
@@ -350,6 +435,7 @@ export default function ChatPage() {
 
   const [copiedBlockId, setCopiedBlockId] = useState<string | null>(null);
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
+  const [fileTaskMode, setFileTaskMode] = useState<FileTaskMode>("analysis");
 
   useEffect(() => {
     setMounted(true);
@@ -395,61 +481,80 @@ export default function ChatPage() {
     });
   }, []);
 
-  const setDefaultFilePrompt = useCallback((files: UploadedFile[]) => {
-    const hasPdf = files.some(
-      (file) =>
-        file.type === "application/pdf" ||
-        file.name.toLowerCase().endsWith(".pdf")
-    );
-
-    const hasImage = files.some((file) => file.type.startsWith("image/"));
-
-    if (hasPdf && !hasImage) {
-      setInput(
-        `Analizá el PDF adjunto sin inventar información.
-
-Si el PDF contiene una pantalla, diseño, formulario, credencial, reporte o layout:
-- replicá únicamente lo visible o detectable;
-- respetá proporciones, colores, tipografías, márgenes, radios, alineaciones y estilos;
-- generá HTML y CSS separados;
-- no agregues datos que no estén en el documento.
-
-Si contiene documentación:
-- resumí puntos técnicos;
-- extraé requisitos, reglas y datos relevantes;
-- indicá cualquier supuesto o dato no visible.`
-      );
-      return;
-    }
-
-    if (hasImage) {
-      setInput(
-        `Replicá el archivo adjunto con máxima precisión visual.
+  const getDefaultFilePrompt = useCallback((mode: FileTaskMode) => {
+    if (mode === "visual") {
+      return `Replicá visualmente el archivo adjunto con máxima precisión posible en una sola pasada.
 
 Reglas obligatorias:
+- No hagas doble revisión ni segunda pasada.
 - No rediseñes.
 - No inventes contenido.
 - No agregues datos que no estén visibles.
 - No inventes nombres de imágenes.
-- No uses rutas locales falsas como email-icon.png, phone-icon.png, web-icon.png, icon.png o similares.
-- No redibujes logos, íconos complejos, fotos ni marcas si el asset está adjunto.
-- Usá el archivo original como imagen dentro del HTML cuando corresponda.
-- Referenciá assets subidos por su nombre exacto en src, por ejemplo: <img src="logo_miweb.png" alt="Logo" />.
-- El sistema de preview resolverá ese src al archivo real cargado.
-- Si necesitás íconos no adjuntos, usá SVG inline o CSS, nunca archivos inventados.
-- Replicá con CSS solamente el layout, fondo, textos, posiciones, tamaños, espaciados, bordes, radios, sombras y colores.
-- Respetá proporciones, estilos, márgenes, tamaños de texto, pesos de fuente y alineaciones.
-- Si algo no puede reproducirse exacto, aproximarlo con CSS/SVG y aclararlo.
-- Si es mobile, respetá formato mobile de 390px de ancho.
-- Si es desktop, respetá proporciones desktop.
-- Generá HTML y CSS separados.
-- Usá medidas en px cuando ayuden a copiar mejor la captura.`
-      );
-      return;
+- No uses <link rel="stylesheet" href="style.css">.
+- No uses archivos CSS externos.
+- No uses scripts externos.
+- Generá HTML y CSS separados en bloques markdown completos.
+- El bloque HTML debe estar cerrado.
+- El bloque CSS debe estar cerrado.
+- Si hay assets adjuntos, referencialos por su nombre exacto.
+
+Modo de fidelidad exacta:
+- Si el adjunto es un logo, placa gráfica, splash, banner, card, poster o composición visual cerrada, usá la imagen adjunta como asset principal.
+- No redibujes el logo con SVG/CSS si lo que se busca es fidelidad exacta.
+- Usá <img src="NOMBRE_EXACTO_DEL_ARCHIVO" /> con el nombre exacto del archivo adjunto.
+- El preview va a reemplazar ese nombre por la imagen real.
+- Mantené proporción, centrado, tamaño, fondo, aire y encuadre.
+- Usá object-fit: contain.
+- Construí con CSS el viewport, fondo, contenedor, centrado, espaciado y escala.
+- Solo redibujá en CSS/SVG si te pido explícitamente “sin usar la imagen”, “reconstrucción vectorial” o “redibujalo”.
+
+Si no usás asset exacto:
+- Antes de generar, estimá internamente canvas, posiciones, tamaños, espaciados, colores y tipografías.
+- Priorizá fidelidad visual por encima de código limpio o componentes genéricos.
+- Usá medidas px, anchos fijos y posicionamiento explícito cuando mejore el parecido.
+- No centres ni redistribuyas elementos salvo que el original lo haga.
+- Si algo no se puede leer o detectar, marcalo como aproximado.
+
+Reglas estrictas de texto visible:
+- No interpretes la marca.
+- No cambies el texto visible.
+- No separes palabras si en la imagen están juntas.
+- No unas palabras si en la imagen están separadas.
+- No traduzcas, reformules ni corrijas nombres.
+- No agregues palabras por contexto.
+- No saques palabras visibles.
+- Copiá exactamente los textos visibles.
+- Conservá mayúsculas, minúsculas, acentos, espacios y unión de palabras.
+
+Control de salida:
+- Agregá un control visual con diferencias esperadas y elementos aproximados.
+- Indicá si usaste asset exacto o reconstrucción.
+- Indicá viewport usado.
+- Indicá escala general aplicada.
+- Indicá proporción aproximada imagen/fondo.`;
     }
 
-    setInput("Analizá el archivo adjunto y respondé sin inventar contenido.");
+    return `Analizá el contenido del archivo adjunto sin inventar información.
+
+Objetivo:
+- resumí lo importante;
+- extraé datos, reglas, requisitos o hallazgos relevantes;
+- si es una imagen, describí y analizá lo visible;
+- si es un PDF, separá resumen, puntos clave y posibles acciones;
+- no generes HTML/CSS ni preview salvo que lo pida explícitamente.`;
   }, []);
+
+  const applyFileTaskMode = useCallback(
+    (mode: FileTaskMode) => {
+      setFileTaskMode(mode);
+
+      if (uploadedFiles.length > 0) {
+        setInput(getDefaultFilePrompt(mode));
+      }
+    },
+    [getDefaultFilePrompt, uploadedFiles.length]
+  );
 
   const loadFiles = useCallback(
     async (files: File[]) => {
@@ -470,7 +575,7 @@ Reglas obligatorias:
       setUploadedFiles(nextFiles);
 
       if (!input.trim()) {
-        setDefaultFilePrompt(nextFiles);
+        setInput(getDefaultFilePrompt(fileTaskMode));
       }
 
       console.log("[PagoTIC_LoadFiles_Debug]", {
@@ -479,7 +584,7 @@ Reglas obligatorias:
         types: nextFiles.map((file) => file.type),
       });
     },
-    [fileToDataUrl, input, setDefaultFilePrompt]
+    [fileToDataUrl, input, getDefaultFilePrompt, fileTaskMode]
   );
 
   const handleFilePaste = useCallback(
@@ -537,6 +642,7 @@ Reglas obligatorias:
 
   const clearFiles = useCallback(() => {
     setUploadedFiles([]);
+    setFileTaskMode("analysis");
 
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
@@ -596,6 +702,7 @@ Reglas obligatorias:
         uploadedFiles: currentUploadedFiles.length,
         names: currentUploadedFiles.map((file) => file.name),
         types: currentUploadedFiles.map((file) => file.type),
+        fileTaskMode,
       });
 
       clearFiles();
@@ -609,10 +716,31 @@ Reglas obligatorias:
           body: JSON.stringify({
             messages: [...messages, userMessage],
             uploadedFiles: currentUploadedFiles,
+            fileTaskMode,
           }),
         });
 
-        if (!response.ok || !response.body) {
+        if (!response.ok) {
+          const errorText = await response.text();
+
+          setMessages((currentMessages) =>
+            currentMessages.map((message) =>
+              message.id === assistantMessageId
+                ? {
+                    ...message,
+                    content:
+                      errorText ||
+                      `El backend respondió con error HTTP ${response.status}.`,
+                    attachments: currentUploadedFiles,
+                  }
+                : message
+            )
+          );
+
+          return;
+        }
+
+        if (!response.body) {
           throw new Error(`HTTP_ERROR_${response.status}`);
         }
 
@@ -674,7 +802,7 @@ Reglas obligatorias:
         setIsLoading(false);
       }
     },
-    [input, uploadedFiles, messages, generateId, clearFiles]
+    [input, uploadedFiles, messages, generateId, clearFiles, fileTaskMode]
   );
 
   if (!mounted) {
@@ -715,7 +843,7 @@ Reglas obligatorias:
         <div className="flex items-center gap-2 bg-gray-50 border border-gray-100 px-4 py-2 rounded-xl">
           <Cpu size={14} className="text-[#1e1248]" />
           <span className="text-[10px] font-normal text-[#1e1248]/60 uppercase tracking-tighter">
-            Model: <span className="text-[#e50051]">v6-Turbo</span>
+            Model: <span className="text-[#e50051]">Auto Fallback</span>
           </span>
         </div>
       </header>
@@ -765,7 +893,7 @@ Reglas obligatorias:
                         className,
                         children,
                         ...props
-                      }: any) {
+                      }: MarkdownCodeProps) {
                         const match = /language-(\w+)/.exec(className || "");
                         const codeContent = String(children).replace(/\n$/, "");
                         const blockId = `block-${
@@ -856,6 +984,32 @@ Reglas obligatorias:
                 </button>
               </div>
 
+              <div className="mt-3 grid grid-cols-2 gap-2 rounded-2xl bg-gray-50 p-1">
+                <button
+                  type="button"
+                  onClick={() => applyFileTaskMode("analysis")}
+                  className={`rounded-xl px-3 py-2 text-[10px] uppercase tracking-widest transition-all ${
+                    fileTaskMode === "analysis"
+                      ? "bg-[#1e1248] text-white"
+                      : "text-[#1e1248] hover:bg-white"
+                  }`}
+                >
+                  Analizar contenido
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => applyFileTaskMode("visual")}
+                  className={`rounded-xl px-3 py-2 text-[10px] uppercase tracking-widest transition-all ${
+                    fileTaskMode === "visual"
+                      ? "bg-[#e50051] text-white"
+                      : "text-[#1e1248] hover:bg-white"
+                  }`}
+                >
+                  Replicar visual
+                </button>
+              </div>
+
               <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
                 {uploadedFiles.map((file, fileIndex) => {
                   const isImage = file.type.startsWith("image/");
@@ -869,11 +1023,14 @@ Reglas obligatorias:
                       className="flex shrink-0 items-center gap-3 rounded-xl border border-gray-100 bg-gray-50 px-3 py-2"
                     >
                       {isImage ? (
-                        <img
-                          src={file.dataUrl}
-                          alt={file.name}
-                          className="h-12 w-12 rounded-lg object-cover border border-gray-200"
-                        />
+                        <>
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={file.dataUrl}
+                            alt={file.name}
+                            className="h-12 w-12 rounded-lg object-cover border border-gray-200"
+                          />
+                        </>
                       ) : (
                         <div className="h-12 w-12 rounded-lg bg-[#1e1248] text-white flex items-center justify-center">
                           <FileText size={20} />
