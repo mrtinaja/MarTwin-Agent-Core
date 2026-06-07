@@ -390,13 +390,31 @@ function getTargetExtension(lastUserMessage: string) {
 }
 
 function isExplicitArtifactGenerationRequest(lastUserMessage: string) {
+  const asksForMockPreview =
+    /\b(mock|mockup|mockea|mockear|mockeando|preview|vista previa|visualiza|visualizar|render|renderiza|renderizar)\b/i.test(
+      lastUserMessage
+    );
+
+  if (asksForMockPreview) {
+    return true;
+  }
+
+  const referencesRenderableTemplate =
+    /\b(template|plantilla|layout|html|css|style\.md|cajr\d+|\.md|sql|query|queries|reporte|report|datos|data)\b/i.test(
+      lastUserMessage
+    );
+
+  if (asksForMockPreview && referencesRenderableTemplate) {
+    return true;
+  }
+
   const hasArtifactKeyword =
-    /\b(cv|curriculum|curriculo|curriculum vitae|tarjeta personal|tarjeta|card|flyer|poster|afiche|banner|invitacion|invitacion|presentacion|presentacion|documento|doc|docx|word|pdf|png|svg|jpg|jpeg|gif|html|css|preview|vista previa)\b/i.test(
+    /\b(cv|curriculum|curriculo|curriculum vitae|tarjeta personal|tarjeta|card|flyer|poster|afiche|banner|invitacion|invitacion|presentacion|presentacion|documento|doc|docx|word|pdf|png|svg|jpg|jpeg|gif|html|css|preview|vista previa|vista|pantalla|formulario|tabla|reporte|maqueta|wireframe|mockup|mock|template|plantilla|layout)\b/i.test(
       lastUserMessage
     );
 
   const hasCreationIntent =
-    /\b(arma|armar|crea|crear|genera|generar|hace|hacer|disena|disenar|diseña|diseñar|converti|convertir|exporta|exportar|devuelve|devolver|responde|responder|prepara|preparar)\b/i.test(
+    /\b(arma|armar|crea|crear|genera|generar|hace|hacer|disena|disenar|diseña|diseñar|converti|convertir|exporta|exportar|devuelve|devolver|responde|responder|prepara|preparar|mockea|mockear|mockeando|maqueta|maquetar|visualiza|visualizar)\b/i.test(
       lastUserMessage
     );
 
@@ -998,6 +1016,712 @@ function validateVisualReplicationOutput(outputText: string) {
     ok: issues.length === 0,
     issues,
   };
+}
+
+function escapeHtml(value: string) {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function buildLocalMockArtifact(lastUserMessage: string, reason: string) {
+  const wantsCard = /\b(tarjeta|card|business card)\b/i.test(lastUserMessage);
+  const wantsCv = /\b(cv|curriculum|curriculo|curriculum vitae)\b/i.test(
+    lastUserMessage
+  );
+  const wantsReport =
+    /\b(cajr\d+|reporte|report|sql|query|queries|tabla|template|plantilla|layout)\b/i.test(
+      lastUserMessage
+    );
+
+  if (wantsReport) {
+    return `## HTML
+
+\`\`\`html
+<main class="report-stage">
+  <section class="report-page" aria-label="Reporte mock">
+    <header class="report-header">
+      <div>
+        <p class="eyebrow">Reporte CAJR30401</p>
+        <h1>Control de operaciones</h1>
+        <p class="subtitle">Preview con datos mockeados desde plantilla Markdown/SQL.</p>
+      </div>
+      <div class="stamp">Pago TIC<br />Mock Preview</div>
+    </header>
+
+    <section class="filters">
+      <div><span>Fecha desde</span><strong>01/06/2026</strong></div>
+      <div><span>Fecha hasta</span><strong>07/06/2026</strong></div>
+      <div><span>Sucursal</span><strong>Todas</strong></div>
+      <div><span>Estado</span><strong>Procesado</strong></div>
+    </section>
+
+    <section class="summary">
+      <article><span>Operaciones</span><strong>128</strong></article>
+      <article><span>Total bruto</span><strong>$ 18.420.300</strong></article>
+      <article><span>Comisiones</span><strong>$ 642.800</strong></article>
+    </section>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Operacion</th>
+          <th>Cliente</th>
+          <th>Producto</th>
+          <th>Estado</th>
+          <th class="num">Importe</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>CAJ-000341</td><td>Acme S.A.</td><td>Pago proveedor</td><td><span class="ok">Procesado</span></td><td class="num">$ 245.900</td></tr>
+        <tr><td>CAJ-000342</td><td>Norte SRL</td><td>Cobranza</td><td><span class="warn">Pendiente</span></td><td class="num">$ 98.120</td></tr>
+        <tr><td>CAJ-000343</td><td>Delta Group</td><td>Transferencia</td><td><span class="ok">Procesado</span></td><td class="num">$ 512.780</td></tr>
+        <tr><td>CAJ-000344</td><td>Sur Logistica</td><td>Conciliacion</td><td><span class="ok">Procesado</span></td><td class="num">$ 176.400</td></tr>
+      </tbody>
+    </table>
+  </section>
+</main>
+\`\`\`
+
+## CSS
+
+\`\`\`css
+.report-stage {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 32px;
+  background: #0f172a;
+  font-family: Arial, sans-serif;
+}
+
+.report-page {
+  width: 1120px;
+  min-height: 760px;
+  padding: 42px;
+  background: #f8fafc;
+  color: #0f172a;
+  box-shadow: 0 26px 70px rgba(0, 0, 0, 0.35);
+}
+
+.report-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 28px;
+  padding-bottom: 24px;
+  border-bottom: 3px solid #e50051;
+}
+
+.eyebrow {
+  margin: 0 0 10px;
+  color: #e50051;
+  font-size: 12px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+h1 {
+  margin: 0;
+  font-size: 38px;
+}
+
+.subtitle {
+  margin: 10px 0 0;
+  color: #475569;
+}
+
+.stamp {
+  align-self: start;
+  padding: 12px 16px;
+  border: 1px solid #cbd5e1;
+  color: #475569;
+  font-size: 12px;
+  line-height: 1.4;
+  text-align: right;
+  text-transform: uppercase;
+}
+
+.filters,
+.summary {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.filters div,
+.summary article {
+  padding: 16px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+}
+
+.filters span,
+.summary span {
+  display: block;
+  margin-bottom: 6px;
+  color: #64748b;
+  font-size: 11px;
+  text-transform: uppercase;
+}
+
+.summary {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.summary strong {
+  font-size: 26px;
+}
+
+table {
+  width: 100%;
+  margin-top: 28px;
+  border-collapse: collapse;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+}
+
+th,
+td {
+  padding: 14px 16px;
+  border-bottom: 1px solid #e2e8f0;
+  font-size: 13px;
+  text-align: left;
+}
+
+th {
+  color: #475569;
+  background: #eef2f7;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.num {
+  text-align: right;
+}
+
+.ok,
+.warn {
+  display: inline-block;
+  padding: 5px 9px;
+  border-radius: 999px;
+  font-size: 11px;
+}
+
+.ok {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.warn {
+  background: #fef3c7;
+  color: #92400e;
+}
+\`\`\`
+
+## Control visual
+
+- Preview mock local generado porque el proveedor no devolvió HTML/CSS usable.
+- Motivo: ${escapeHtml(reason)}
+- Datos usados: operaciones, filtros y totales ficticios.
+- Formato: reporte administrativo horizontal basado en una plantilla Markdown/SQL.`;
+  }
+
+  if (wantsCard) {
+    return `## HTML
+
+\`\`\`html
+<main class="mock-card-stage">
+  <section class="business-card" aria-label="Tarjeta personal mock">
+    <div class="brand-mark">MT</div>
+    <div class="card-copy">
+      <p class="eyebrow">Producto digital</p>
+      <h1>Martina Torres</h1>
+      <p class="role">Full Stack Developer</p>
+      <dl>
+        <div><dt>Email</dt><dd>martina@example.com</dd></div>
+        <div><dt>Web</dt><dd>martwin.dev</dd></div>
+        <div><dt>Tel</dt><dd>+54 11 5555 0123</dd></div>
+      </dl>
+    </div>
+  </section>
+</main>
+\`\`\`
+
+## CSS
+
+\`\`\`css
+.mock-card-stage {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 48px;
+  background: #111827;
+  font-family: Inter, Arial, sans-serif;
+}
+
+.business-card {
+  width: 640px;
+  aspect-ratio: 1.75;
+  display: grid;
+  grid-template-columns: 180px 1fr;
+  overflow: hidden;
+  border-radius: 22px;
+  background: linear-gradient(135deg, #ffffff 0%, #eef2ff 100%);
+  color: #111827;
+  box-shadow: 0 28px 70px rgba(0, 0, 0, 0.34);
+}
+
+.brand-mark {
+  display: grid;
+  place-items: center;
+  background: #e50051;
+  color: #ffffff;
+  font-size: 52px;
+  font-weight: 800;
+}
+
+.card-copy {
+  padding: 42px 48px;
+}
+
+.eyebrow {
+  margin: 0 0 16px;
+  color: #e50051;
+  font-size: 12px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+h1 {
+  margin: 0;
+  font-size: 42px;
+}
+
+.role {
+  margin: 8px 0 30px;
+  color: #4b5563;
+  font-size: 18px;
+}
+
+dl {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+}
+
+dl div {
+  display: grid;
+  grid-template-columns: 72px 1fr;
+  gap: 18px;
+}
+
+dt {
+  color: #6b7280;
+  font-size: 11px;
+  text-transform: uppercase;
+}
+
+dd {
+  margin: 0;
+  font-size: 14px;
+}
+\`\`\`
+
+## Control visual
+
+- Preview mock local generado porque el proveedor no devolvió HTML/CSS usable.
+- Motivo: ${escapeHtml(reason)}
+- Datos usados: placeholders editables.
+- Formato: tarjeta personal horizontal.`;
+  }
+
+  const documentTitle = wantsCv ? "Curriculum Vitae" : "Documento visual";
+  const personName = wantsCv ? "Martina Torres" : "MarTwin Preview";
+  const role = wantsCv ? "Full Stack Developer" : "Artefacto mockeado";
+
+  return `## HTML
+
+\`\`\`html
+<main class="page-shell">
+  <article class="document-page" aria-label="${documentTitle} mock">
+    <header class="hero">
+      <div>
+        <p class="kicker">${documentTitle}</p>
+        <h1>${personName}</h1>
+        <p class="subtitle">${role}</p>
+      </div>
+      <aside class="contact">
+        <span>martina@example.com</span>
+        <span>Buenos Aires, AR</span>
+        <span>linkedin.com/in/martina</span>
+      </aside>
+    </header>
+
+    <section>
+      <h2>Perfil</h2>
+      <p>Profesional orientada a crear productos digitales claros, rápidos y mantenibles. Este contenido está mockeado para permitir preview inmediato sin consumir modelo pago.</p>
+    </section>
+
+    <section class="grid">
+      <div>
+        <h2>Experiencia</h2>
+        <ul>
+          <li><strong>Pago TIC</strong><span>Frontend, automatización y documentación técnica.</span></li>
+          <li><strong>MarTwin Labs</strong><span>Diseño de interfaces, APIs y flujos internos.</span></li>
+        </ul>
+      </div>
+      <div>
+        <h2>Skills</h2>
+        <p>React, Next.js, Node.js, TypeScript, UX, QA, documentación y automatización.</p>
+      </div>
+    </section>
+  </article>
+</main>
+\`\`\`
+
+## CSS
+
+\`\`\`css
+.page-shell {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 32px;
+  background: #111827;
+  font-family: Inter, Arial, sans-serif;
+}
+
+.document-page {
+  width: 794px;
+  min-height: 1123px;
+  padding: 64px;
+  background: #ffffff;
+  color: #111827;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.32);
+}
+
+.hero {
+  display: flex;
+  justify-content: space-between;
+  gap: 32px;
+  padding-bottom: 34px;
+  border-bottom: 3px solid #e50051;
+}
+
+.kicker {
+  margin: 0 0 12px;
+  color: #e50051;
+  font-size: 12px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+h1 {
+  margin: 0;
+  font-size: 54px;
+  line-height: 1;
+}
+
+.subtitle {
+  margin: 14px 0 0;
+  color: #4b5563;
+  font-size: 20px;
+}
+
+.contact {
+  display: grid;
+  gap: 8px;
+  align-content: start;
+  color: #4b5563;
+  font-size: 13px;
+  text-align: right;
+}
+
+section {
+  margin-top: 36px;
+}
+
+h2 {
+  margin: 0 0 14px;
+  color: #e50051;
+  font-size: 16px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+p {
+  margin: 0;
+  color: #374151;
+  font-size: 16px;
+  line-height: 1.7;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: 1.45fr 1fr;
+  gap: 42px;
+}
+
+ul {
+  display: grid;
+  gap: 18px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+li {
+  display: grid;
+  gap: 4px;
+}
+
+li span {
+  color: #4b5563;
+  line-height: 1.55;
+}
+\`\`\`
+
+## Control visual
+
+- Preview mock local generado porque el proveedor no devolvió HTML/CSS usable.
+- Motivo: ${escapeHtml(reason)}
+- Datos usados: placeholders editables.
+- Formato: hoja A4 visual para exportar como PDF, imagen o Word.`;
+}
+
+function shouldUseLocalWorkspacePreview(
+  lastUserMessage: string,
+  contextFromDocs: string
+) {
+  return (
+    /\b(preview|vista previa|render|renderiza|renderizar|mock|mockeando)\b/i.test(
+      lastUserMessage
+    ) &&
+    /<WORKSPACE_OBJECT_ENTRY/i.test(contextFromDocs) &&
+    /(queries\s*:|layout\s*:|export\s+default|#\[[A-Z0-9_]+\]#)/i.test(
+      contextFromDocs
+    )
+  );
+}
+
+function extractReportColumns(contextFromDocs: string) {
+  const columns: string[] = [];
+  const aliasRegex = /AS\s+"([^"|"]+)(?:\|[^"]*)?"/gi;
+  let match: RegExpExecArray | null;
+
+  while ((match = aliasRegex.exec(contextFromDocs)) && columns.length < 18) {
+    const column = match[1].trim();
+
+    if (column && !columns.includes(column)) {
+      columns.push(column);
+    }
+  }
+
+  return columns.length
+    ? columns
+    : ["Tipo", "Ramo", "Siniestro", "Beneficiario", "Importe", "Egreso"];
+}
+
+function getMockReportCell(column: string, rowIndex: number) {
+  const normalized = column.toLowerCase();
+  const rowNumber = rowIndex + 1;
+
+  if (normalized.includes("tipo")) {
+    return ["PROVEEDOR", "SINIESTRO", "REINTEGRO"][rowIndex % 3];
+  }
+
+  if (normalized.includes("ramo")) return String([18, 3, 12][rowIndex % 3]);
+  if (normalized.includes("siniestro")) return String(840120 + rowIndex * 17);
+  if (normalized.includes("beneficiario")) {
+    return ["Zurich Servicios", "Taller Norte", "Maria Gomez", "Proveedor Delta"][
+      rowIndex % 4
+    ];
+  }
+  if (normalized.includes("importe")) {
+    return `$ ${(124500 + rowIndex * 38520).toLocaleString("es-AR")}`;
+  }
+  if (normalized.includes("cheque")) return String(93000 + rowIndex);
+  if (normalized.includes("egreso")) return String(304500 + rowIndex);
+  if (normalized.includes("fecha")) return `0${rowNumber}/06/2026`;
+  if (normalized.includes("estado")) return rowIndex % 2 === 0 ? "Emitido" : "Pendiente";
+  if (normalized.includes("sucursal")) return String([1, 12, 25][rowIndex % 3]);
+  if (normalized.includes("cbu")) return `00000031000${rowIndex}987654`;
+  if (normalized.includes("poliza")) return String(7001200 + rowIndex);
+  if (normalized.includes("factura")) return `A-${String(1280 + rowIndex)}`;
+  if (normalized.includes("dni") || normalized.includes("cuit")) {
+    return `30-71234${rowIndex}8-${rowIndex}`;
+  }
+
+  return `Dato ${rowNumber}`;
+}
+
+function buildLocalWorkspaceReportPreview(
+  contextFromDocs: string,
+  lastUserMessage: string
+) {
+  const nameMatch =
+    /name\s*:\s*"([^"]+)"/i.exec(contextFromDocs) ||
+    /<title>([^<]+)<\/title>/i.exec(contextFromDocs) ||
+    /name="([^"]+)"/i.exec(contextFromDocs);
+  const titleMatch =
+    /<h[1-3][^>]*>([^<]+)<\/h[1-3]>/i.exec(contextFromDocs) ||
+    /description\s*:\s*"([^"]+)"/i.exec(contextFromDocs);
+  const reportName = nameMatch?.[1]?.trim() || "Reporte";
+  const reportTitle = titleMatch?.[1]?.trim() || `${reportName} - Preview`;
+  const columns = extractReportColumns(contextFromDocs);
+  const rows = Array.from({ length: 6 }, (_, rowIndex) =>
+    columns.map((column) => getMockReportCell(column, rowIndex))
+  );
+  const headerCells = columns.map((column) => `<th>${escapeHtml(column)}</th>`).join("");
+  const bodyRows = rows
+    .map(
+      (row) =>
+        `<tr>${row
+          .map((cell, index) => {
+            const numeric = /importe|ramo|siniestro|cheque|egreso|poliza/i.test(
+              columns[index]
+            );
+
+            return `<td class="${numeric ? "num" : ""}">${escapeHtml(cell)}</td>`;
+          })
+          .join("")}</tr>`
+    )
+    .join("\n");
+
+  return `## HTML
+
+\`\`\`html
+<main class="report-preview">
+  <section class="report-sheet" aria-label="${escapeHtml(reportName)} mock">
+    <header class="report-header">
+      <div class="brand">Zurich Santander</div>
+      <div>
+        <p class="eyebrow">${escapeHtml(reportName)}</p>
+        <h1>${escapeHtml(reportTitle)}</h1>
+        <p class="meta">NU_SECUENCIA: 30450 · Datos mockeados · ${new Date()
+          .toISOString()
+          .slice(0, 10)}</p>
+      </div>
+    </header>
+
+    <table>
+      <thead>
+        <tr>${headerCells}</tr>
+      </thead>
+      <tbody>
+        ${bodyRows}
+      </tbody>
+    </table>
+  </section>
+</main>
+\`\`\`
+
+## CSS
+
+\`\`\`css
+.report-preview {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 28px;
+  background: #101827;
+  font-family: Arial, sans-serif;
+}
+
+.report-sheet {
+  width: 1180px;
+  min-height: 760px;
+  padding: 34px;
+  background: #ffffff;
+  color: #111827;
+  box-shadow: 0 28px 80px rgba(0, 0, 0, 0.35);
+}
+
+.report-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 28px;
+  margin-bottom: 28px;
+  padding-bottom: 18px;
+  border-bottom: 3px solid #1e3a8a;
+}
+
+.brand {
+  min-width: 180px;
+  padding: 13px 16px;
+  border-left: 6px solid #e50051;
+  color: #1e3a8a;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.eyebrow {
+  margin: 0 0 8px;
+  color: #e50051;
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  text-align: right;
+}
+
+h1 {
+  margin: 0;
+  font-size: 24px;
+  text-align: right;
+}
+
+.meta {
+  margin: 8px 0 0;
+  color: #64748b;
+  font-size: 12px;
+  text-align: right;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  border: 1px solid #dbe3ef;
+}
+
+th,
+td {
+  padding: 9px 8px;
+  border: 1px solid #dbe3ef;
+  font-size: 11px;
+  vertical-align: top;
+  word-break: break-word;
+}
+
+th {
+  background: #e8eef7;
+  color: #1e3a8a;
+  font-size: 10px;
+  text-transform: uppercase;
+}
+
+tbody tr:nth-child(even) {
+  background: #f8fafc;
+}
+
+.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+\`\`\`
+
+## Control visual
+
+- Preview local generado desde el contenido del workspace, sin usar modelo externo.
+- No se renderiza el codigo fuente: se renderiza la salida esperada del template/script.
+- Columnas detectadas del SQL: ${columns.map((column) => `\`${column}\``).join(", ")}.
+- Datos mockeados para validar layout, tabla y exportaciones CSV/XLS.
+- Pedido original: ${escapeHtml(lastUserMessage)}.`;
 }
 
 function buildOpenRouterBodyPayload({
@@ -1648,6 +2372,9 @@ TEXT_TO_ARTIFACT_MODE:
   - Social/banner/flyer/poster/image: choose a suitable canvas and state it in Control visual.
 - If the user provides text and context, preserve the user-provided facts and do not invent missing personal data.
 - If required data is missing, leave tasteful placeholders only when needed and mark them in Control visual.
+- If the workspace context contains STYLE.md plus a report/template Markdown file with SQL and HTML layout, render a preview using mocked rows, filters, totals and labels.
+- Do not answer with "I see the workspace contains..." when the user asks for a preview, mock, mockup, render or visual output.
+- For report templates, keep the template intent and create a realistic administrative report screen/page with mocked data.
 
 EXACT_ASSET_MODE:
 - If the attached image is a closed graphic piece, logo, splash screen, banner, brand plate, card, poster, screenshot-like design, or composition where exact visual fidelity matters, use the attached image as the main visual asset.
@@ -1735,9 +2462,10 @@ export async function POST(req: Request) {
       requestedFileTaskMode === "visual" || shouldGenerateArtifactFromText;
 
     const shouldLoadLocalContext =
-      !shouldGenerateVisualOutput &&
       !shouldSkipLocalContext(lastUserMessage) &&
-      (!hasFile || isExplicitWorkspaceContextRequest(lastUserMessage));
+      (!hasFile || isExplicitWorkspaceContextRequest(lastUserMessage)) &&
+      (!shouldGenerateVisualOutput ||
+        isExplicitWorkspaceContextRequest(lastUserMessage));
 
     console.log("[PagoTIC_File_Debug]", {
       aiProvider,
@@ -1808,6 +2536,24 @@ ${content}
           );
         }
       }
+    }
+
+    if (
+      shouldGenerateVisualOutput &&
+      shouldUseLocalWorkspacePreview(lastUserMessage, contextFromDocs)
+    ) {
+      const localWorkspacePreview = buildLocalWorkspaceReportPreview(
+        contextFromDocs,
+        lastUserMessage
+      );
+
+      return new Response(buildPlainTextStream(localWorkspacePreview), {
+        status: 200,
+        headers: {
+          "Content-Type": "text/plain; charset=utf-8",
+          "Cache-Control": "no-cache, no-transform",
+        },
+      });
     }
 
     const sourceReferencesList =
@@ -1890,6 +2636,19 @@ ${contextFromDocs || "WAITING_FOR_COMMANDS"}`;
       const validation = validateVisualReplicationOutput(outputText);
 
       if (!validation.ok) {
+        const localMockOutput = buildLocalMockArtifact(
+          lastUserMessage,
+          validation.issues.join("; ") || rawOutputText.slice(0, 280)
+        );
+
+        return new Response(buildPlainTextStream(localMockOutput), {
+          status: 200,
+          headers: {
+            "Content-Type": "text/plain; charset=utf-8",
+            "Cache-Control": "no-cache, no-transform",
+          },
+        });
+
         return new Response(
           buildPlainTextStream(
             [

@@ -395,6 +395,83 @@ function downloadBlob(blob: Blob, fileName: string) {
   window.setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
+function parsePreviewDocument(previewHtml: string) {
+  return new DOMParser().parseFromString(previewHtml, "text/html");
+}
+
+function getPreviewTableRows(previewHtml: string) {
+  const document = parsePreviewDocument(previewHtml);
+  const table = document.querySelector("table");
+
+  if (table) {
+    return Array.from(table.querySelectorAll("tr"))
+      .map((row) =>
+        Array.from(row.querySelectorAll("th,td")).map((cell) =>
+          (cell.textContent || "").replace(/\s+/g, " ").trim()
+        )
+      )
+      .filter((row) => row.some(Boolean));
+  }
+
+  const contentRows = Array.from(
+    document.body.querySelectorAll("h1,h2,h3,p,li,dt,dd")
+  )
+    .map((element) => [
+      element.tagName.toLowerCase(),
+      (element.textContent || "").replace(/\s+/g, " ").trim(),
+    ])
+    .filter((row) => row[1]);
+
+  return [["tipo", "contenido"], ...contentRows];
+}
+
+function escapeCsvCell(value: string) {
+  return `"${value.replace(/"/g, '""')}"`;
+}
+
+function buildCsv(previewHtml: string) {
+  return getPreviewTableRows(previewHtml)
+    .map((row) => row.map(escapeCsvCell).join(","))
+    .join("\r\n");
+}
+
+function buildXlsHtml(previewHtml: string) {
+  const document = parsePreviewDocument(previewHtml);
+  const table = document.querySelector("table");
+
+  if (table) {
+    return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+</head>
+<body>
+  ${table.outerHTML}
+</body>
+</html>`;
+  }
+
+  const rows = getPreviewTableRows(previewHtml);
+  const tableRows = rows
+    .map(
+      (row) =>
+        `<tr>${row
+          .map((cell) => `<td>${cell.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")}</td>`)
+          .join("")}</tr>`
+    )
+    .join("");
+
+  return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+</head>
+<body>
+  <table>${tableRows}</table>
+</body>
+</html>`;
+}
+
 function buildExportSvg(previewHtml: string, width: number, height: number) {
   const { styles, body } = getExportDocumentParts(previewHtml);
 
@@ -581,6 +658,26 @@ const HtmlPreview = ({
     );
   };
 
+  const exportCsv = () => {
+    const csv = buildCsv(previewHtml);
+
+    downloadBlob(
+      new Blob([`\uFEFF${csv}`], { type: "text/csv;charset=utf-8" }),
+      createArtifactFileName("csv")
+    );
+  };
+
+  const exportXls = () => {
+    const xlsHtml = buildXlsHtml(previewHtml);
+
+    downloadBlob(
+      new Blob([xlsHtml], {
+        type: "application/vnd.ms-excel;charset=utf-8",
+      }),
+      createArtifactFileName("xls")
+    );
+  };
+
   return (
     <div className="mt-6 max-w-full overflow-hidden rounded-2xl border border-white/10 bg-black/20">
       <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
@@ -663,6 +760,22 @@ const HtmlPreview = ({
           >
             Word
           </button>
+
+          <button
+            type="button"
+            onClick={exportCsv}
+            className="rounded-xl bg-white/10 px-3 py-2 text-[10px] uppercase tracking-widest text-white transition-all hover:bg-white/20 active:scale-95"
+          >
+            CSV
+          </button>
+
+          <button
+            type="button"
+            onClick={exportXls}
+            className="rounded-xl bg-white/10 px-3 py-2 text-[10px] uppercase tracking-widest text-white transition-all hover:bg-white/20 active:scale-95"
+          >
+            XLS
+          </button>
         </div>
       </div>
 
@@ -688,6 +801,7 @@ export default function ChatPage() {
   const inputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const activeRequestRef = useRef<AbortController | null>(null);
 
   const [mounted, setMounted] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>(initialMessages);
@@ -920,16 +1034,34 @@ Objetivo:
     });
   }, []);
 
+  const handleStopChat = useCallback(() => {
+    activeRequestRef.current?.abort();
+    activeRequestRef.current = null;
+    setIsLoading(false);
+  }, []);
+
   const handleChatSubmit = useCallback(
     async (event: React.FormEvent<HTMLFormElement>) => {
       event.preventDefault();
 
       const trimmedInput = input.trim();
       const currentUploadedFiles = [...uploadedFiles];
+      const shouldForceVisualMode =
+        /\b(mock|mockup|mockea|mockear|mockeando|preview|vista previa|visualiza|visualizar|render|renderiza|renderizar)\b/i.test(
+          trimmedInput
+        );
+      const effectiveFileTaskMode: FileTaskMode = shouldForceVisualMode
+        ? "visual"
+        : fileTaskMode;
 
       if (!trimmedInput && !currentUploadedFiles.length) {
         return;
       }
+
+      activeRequestRef.current?.abort();
+
+      const requestController = new AbortController();
+      activeRequestRef.current = requestController;
 
       const userMessage: ChatMessage = {
         id: generateId("user"),
@@ -963,7 +1095,7 @@ Objetivo:
         uploadedFiles: currentUploadedFiles.length,
         names: currentUploadedFiles.map((file) => file.name),
         types: currentUploadedFiles.map((file) => file.type),
-        fileTaskMode,
+        fileTaskMode: effectiveFileTaskMode,
       });
 
       clearFiles();
@@ -977,8 +1109,9 @@ Objetivo:
           body: JSON.stringify({
             messages: [...messages, userMessage],
             uploadedFiles: currentUploadedFiles,
-            fileTaskMode,
+            fileTaskMode: effectiveFileTaskMode,
           }),
+          signal: requestController.signal,
         });
 
         if (!response.ok) {
@@ -1045,6 +1178,24 @@ Objetivo:
           );
         }
       } catch (error) {
+        if (error instanceof DOMException && error.name === "AbortError") {
+          setMessages((currentMessages) =>
+            currentMessages.map((message) =>
+              message.id === assistantMessageId
+                ? {
+                    ...message,
+                    content:
+                      message.content.trim() ||
+                      "Consulta detenida por el usuario.",
+                    attachments: currentUploadedFiles,
+                  }
+                : message
+            )
+          );
+
+          return;
+        }
+
         console.error("PAGOTIC_FRONT_CHAT_FAILURE:", error);
 
         setMessages((currentMessages) =>
@@ -1060,6 +1211,10 @@ Objetivo:
           )
         );
       } finally {
+        if (activeRequestRef.current === requestController) {
+          activeRequestRef.current = null;
+        }
+
         setIsLoading(false);
       }
     },
@@ -1359,6 +1514,17 @@ Objetivo:
               }
               disabled={isLoading}
             />
+
+            {isLoading && (
+              <button
+                type="button"
+                onClick={handleStopChat}
+                className="flex items-center gap-2 px-5 py-4 rounded-[2rem] font-normal text-xs uppercase tracking-widest transition-all bg-[#e50051] text-white shadow-lg shadow-[#e50051]/20 active:scale-95"
+              >
+                <X size={16} />
+                Detener
+              </button>
+            )}
 
             <button
               type="submit"
