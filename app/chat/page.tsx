@@ -1,38 +1,114 @@
 "use client";
+
 export const dynamic = "force-dynamic";
 
-import { useChat } from 'ai/react';
-import { useRef, useEffect, useState, useCallback } from 'react';
+import { useRef, useEffect, useState, useCallback } from "react";
 import {
-  BrainCircuit, Activity, Terminal, Copy, Check, Cpu, SendHorizontal, Bot, User
-} from 'lucide-react';
-import ReactMarkdown from 'react-markdown';
-import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
-import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
+  BrainCircuit,
+  Activity,
+  Terminal,
+  Copy,
+  Check,
+  Cpu,
+  SendHorizontal,
+  Bot,
+  User,
+  ImageIcon,
+  X,
+  FileText,
+} from "lucide-react";
+import ReactMarkdown from "react-markdown";
+import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
+import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
 
-const CodeBlock = ({ language, value, onCopy, copiedId, blockId }: any) => {
+type ChatRole = "user" | "assistant";
+
+type UploadedFile = {
+  name: string;
+  type: string;
+  dataUrl: string;
+};
+
+type ChatMessage = {
+  id: string;
+  role: ChatRole;
+  content: string;
+  attachments?: UploadedFile[];
+};
+
+type CodeBlockProps = {
+  language?: string;
+  value: string;
+  onCopy: (code: string, id: string) => void;
+  copiedId: string | null;
+  blockId: string;
+};
+
+const initialMessages: ChatMessage[] = [
+  {
+    id: "init",
+    role: "assistant",
+    content:
+      "Hola, soy el asistente tecnico de **Pago TIC**. Puedo ayudarte con desarrollo, analisis de codigo, documentacion, QA, debugging, arquitectura y automatizacion.",
+  },
+];
+
+const allowedMimeTypes = [
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/gif",
+  "application/pdf",
+];
+
+const allowedExtensionRegex = /\.(jpg|jpeg|png|webp|gif|pdf)$/i;
+
+const CodeBlock = ({
+  language,
+  value,
+  onCopy,
+  copiedId,
+  blockId,
+}: CodeBlockProps) => {
   return (
-    <div className="relative my-6 rounded-2xl overflow-hidden bg-[#1e1248] shadow-xl group border border-gray-800">
+    <div className="relative my-6 max-w-full overflow-hidden rounded-2xl bg-[#1e1248] shadow-xl group border border-gray-800">
       <div className="bg-[#1e1248] px-4 py-2 border-b border-white/10 text-[10px] text-gray-400 font-normal uppercase flex justify-between items-center">
         <span className="flex items-center gap-2">
-          <Terminal size={12} className="text-[#e50051]" /> {language || 'code'}
+          <Terminal size={12} className="text-[#e50051]" />
+          {language || "code"}
         </span>
+
         <button
-          onClick={(e) => {
-            e.stopPropagation();
+          type="button"
+          onClick={(event) => {
+            event.stopPropagation();
             onCopy(value, blockId);
           }}
           className="flex items-center gap-1.5 hover:text-white transition-colors bg-white/5 px-3 py-1 rounded-lg border border-white/10 active:scale-95"
         >
-          {copiedId === blockId ? <Check size={12} className="text-green-400" /> : <Copy size={12} />}
-          {copiedId === blockId ? 'COPIADO' : 'COPIAR'}
+          {copiedId === blockId ? (
+            <Check size={12} className="text-green-400" />
+          ) : (
+            <Copy size={12} />
+          )}
+
+          {copiedId === blockId ? "COPIADO" : "COPIAR"}
         </button>
       </div>
+
       <SyntaxHighlighter
         style={vscDarkPlus}
         language={language}
         PreTag="div"
-        customStyle={{ margin: 0, background: 'transparent', padding: '1.5rem', fontSize: '12px', lineHeight: '1.6' }}
+        customStyle={{
+          margin: 0,
+          background: "transparent",
+          padding: "1.5rem",
+          fontSize: "12px",
+          lineHeight: "1.6",
+          overflowX: "auto",
+          maxWidth: "100%",
+        }}
       >
         {value}
       </SyntaxHighlighter>
@@ -40,36 +116,254 @@ const CodeBlock = ({ language, value, onCopy, copiedId, blockId }: any) => {
   );
 };
 
+function extractCodeBlock(content: string, language: string) {
+  const regex = new RegExp("```" + language + "\\s*([\\s\\S]*?)```", "i");
+  const match = content.match(regex);
+
+  return match?.[1]?.trim() || "";
+}
+
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function getAssetFileNameVariants(fileName: string) {
+  const cleanName = fileName.trim();
+  const encodedName = encodeURIComponent(cleanName);
+
+  return [
+    cleanName,
+    `./${cleanName}`,
+    `/${cleanName}`,
+    encodedName,
+    `./${encodedName}`,
+    `/${encodedName}`,
+  ];
+}
+
+function replaceAssetReferences(htmlOrCss: string, assets: UploadedFile[]) {
+  let nextValue = htmlOrCss;
+
+  for (const asset of assets) {
+    if (!asset.type.startsWith("image/")) continue;
+
+    const variants = getAssetFileNameVariants(asset.name);
+
+    for (const variant of variants) {
+      const escapedVariant = escapeRegExp(variant);
+
+      nextValue = nextValue.replace(
+        new RegExp(`src=["']${escapedVariant}["']`, "gi"),
+        `src="${asset.dataUrl}"`
+      );
+
+      nextValue = nextValue.replace(
+        new RegExp(`url\\(["']?${escapedVariant}["']?\\)`, "gi"),
+        `url("${asset.dataUrl}")`
+      );
+    }
+  }
+
+  return nextValue;
+}
+
+function neutralizeUnknownImageSources(html: string, assets: UploadedFile[]) {
+  const assetNames = assets
+    .filter((asset) => asset.type.startsWith("image/"))
+    .flatMap((asset) => getAssetFileNameVariants(asset.name))
+    .map((name) => name.toLowerCase());
+
+  return html.replace(
+    /<img([^>]*?)src=["']([^"']+)["']([^>]*)>/gi,
+    (fullMatch, beforeSrc, src, afterSrc) => {
+      const normalizedSrc = String(src).trim().toLowerCase();
+
+      const isSafeSrc =
+        normalizedSrc.startsWith("data:") ||
+        normalizedSrc.startsWith("http://") ||
+        normalizedSrc.startsWith("https://") ||
+        assetNames.includes(normalizedSrc);
+
+      if (isSafeSrc) {
+        return fullMatch;
+      }
+
+      const safeTitle = String(src).replace(/"/g, "&quot;");
+
+      return `<span class="missing-generated-asset" title="Asset no disponible: ${safeTitle}"></span>`;
+    }
+  );
+}
+
+function buildPreviewHtml(content: string, assets: UploadedFile[] = []) {
+  const rawHtml = extractCodeBlock(content, "html");
+  const rawCss = extractCodeBlock(content, "css");
+
+  if (!rawHtml && !rawCss) return "";
+
+  const htmlWithAssets = replaceAssetReferences(rawHtml, assets);
+  const html = neutralizeUnknownImageSources(htmlWithAssets, assets);
+  const css = replaceAssetReferences(rawCss, assets);
+
+  const baseCss = `
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: Arial, sans-serif;
+      background: #ffffff;
+      overflow-x: hidden;
+    }
+
+    img {
+      max-width: 100%;
+      height: auto;
+      display: block;
+    }
+
+    .missing-generated-asset {
+      display: inline-block;
+      width: 0;
+      height: 0;
+      overflow: hidden;
+      visibility: hidden;
+    }
+  `;
+
+  const htmlHasDocument =
+    html.toLowerCase().includes("<!doctype") ||
+    html.toLowerCase().includes("<html");
+
+  if (htmlHasDocument) {
+    let finalHtml = html;
+    const finalCss = `${baseCss}\n${css}`;
+
+    if (finalCss.trim()) {
+      if (finalHtml.toLowerCase().includes("</head>")) {
+        finalHtml = finalHtml.replace(
+          "</head>",
+          `<style>${finalCss}</style></head>`
+        );
+      } else if (finalHtml.toLowerCase().includes("<body")) {
+        finalHtml = finalHtml.replace(
+          /<body([^>]*)>/i,
+          `<head><style>${finalCss}</style></head><body$1>`
+        );
+      } else {
+        finalHtml = `${finalHtml}<style>${finalCss}</style>`;
+      }
+    }
+
+    return finalHtml;
+  }
+
+  return `
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <style>
+    ${baseCss}
+
+    ${css}
+  </style>
+</head>
+
+<body>
+  ${html}
+</body>
+</html>
+`;
+}
+
+const HtmlPreview = ({
+  content,
+  assets = [],
+}: {
+  content: string;
+  assets?: UploadedFile[];
+}) => {
+  const previewHtml = buildPreviewHtml(content, assets);
+
+  if (!previewHtml) return null;
+
+  const openPreview = () => {
+    const previewWindow = window.open("", "_blank");
+
+    if (!previewWindow) return;
+
+    previewWindow.document.open();
+    previewWindow.document.write(previewHtml);
+    previewWindow.document.close();
+  };
+
+  return (
+    <div className="mt-6 max-w-full overflow-hidden rounded-2xl border border-white/10 bg-black/20">
+      <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
+        <div>
+          <p className="text-[10px] uppercase tracking-[0.2em] text-gray-300">
+            Vista previa HTML
+          </p>
+          <p className="text-[10px] text-gray-500">
+            Renderizado local desde el código generado
+          </p>
+        </div>
+
+        <button
+          type="button"
+          onClick={openPreview}
+          className="rounded-xl bg-[#e50051] px-4 py-2 text-[10px] uppercase tracking-widest text-white transition-all hover:opacity-90 active:scale-95"
+        >
+          Abrir
+        </button>
+      </div>
+
+      <div className="bg-[#05020f] p-6 overflow-x-auto">
+        <div className="mx-auto w-fit rounded-[2rem] border border-white/10 bg-black p-2 shadow-2xl">
+          <iframe
+            title="HTML Preview"
+            srcDoc={previewHtml}
+            sandbox="allow-scripts"
+            className="h-[760px] w-[390px] rounded-[1.5rem] bg-white"
+          />
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export default function ChatPage() {
   const inputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+
   const [mounted, setMounted] = useState(false);
+  const [messages, setMessages] = useState<ChatMessage[]>(initialMessages);
+  const [input, setInput] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+
   const [copiedBlockId, setCopiedBlockId] = useState<string | null>(null);
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
 
   useEffect(() => {
     setMounted(true);
-    setTimeout(() => inputRef.current?.focus(), 200);
-  }, []);
 
-  const { messages, input, handleInputChange, handleSubmit, isLoading } = useChat({
-    api: '/api/chat',
-    initialMessages: [{
-      id: 'init',
-      role: 'assistant',
-      content: 'Hola, soy el asistente tecnico de **Pago TIC**. Puedo ayudarte con desarrollo, analisis de codigo, documentacion, QA, debugging, arquitectura y automatizacion.'
-    }],
-  });
+    setTimeout(() => {
+      inputRef.current?.focus();
+    }, 200);
+  }, []);
 
   useEffect(() => {
-    if (!isLoading) inputRef.current?.focus();
+    if (!isLoading) {
+      inputRef.current?.focus();
+    }
   }, [isLoading]);
-
-  const handleCopy = useCallback((code: string, id: string) => {
-    navigator.clipboard.writeText(code).then(() => {
-      setCopiedBlockId(id);
-      setTimeout(() => setCopiedBlockId(null), 2000);
-    });
-  }, []);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -77,21 +371,342 @@ export default function ChatPage() {
     }
   }, [messages, isLoading]);
 
-  if (!mounted) return <div className="h-screen bg-gray-50" />;
+  const generateId = useCallback((prefix: string) => {
+    return `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  }, []);
+
+  const fileToDataUrl = useCallback((file: File): Promise<UploadedFile> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+
+      reader.onload = () => {
+        resolve({
+          name: file.name,
+          type: file.type || "application/octet-stream",
+          dataUrl: String(reader.result),
+        });
+      };
+
+      reader.onerror = () => {
+        reject(reader.error);
+      };
+
+      reader.readAsDataURL(file);
+    });
+  }, []);
+
+  const setDefaultFilePrompt = useCallback((files: UploadedFile[]) => {
+    const hasPdf = files.some(
+      (file) =>
+        file.type === "application/pdf" ||
+        file.name.toLowerCase().endsWith(".pdf")
+    );
+
+    const hasImage = files.some((file) => file.type.startsWith("image/"));
+
+    if (hasPdf && !hasImage) {
+      setInput(
+        `Analizá el PDF adjunto sin inventar información.
+
+Si el PDF contiene una pantalla, diseño, formulario, credencial, reporte o layout:
+- replicá únicamente lo visible o detectable;
+- respetá proporciones, colores, tipografías, márgenes, radios, alineaciones y estilos;
+- generá HTML y CSS separados;
+- no agregues datos que no estén en el documento.
+
+Si contiene documentación:
+- resumí puntos técnicos;
+- extraé requisitos, reglas y datos relevantes;
+- indicá cualquier supuesto o dato no visible.`
+      );
+      return;
+    }
+
+    if (hasImage) {
+      setInput(
+        `Replicá el archivo adjunto con máxima precisión visual.
+
+Reglas obligatorias:
+- No rediseñes.
+- No inventes contenido.
+- No agregues datos que no estén visibles.
+- No inventes nombres de imágenes.
+- No uses rutas locales falsas como email-icon.png, phone-icon.png, web-icon.png, icon.png o similares.
+- No redibujes logos, íconos complejos, fotos ni marcas si el asset está adjunto.
+- Usá el archivo original como imagen dentro del HTML cuando corresponda.
+- Referenciá assets subidos por su nombre exacto en src, por ejemplo: <img src="logo_miweb.png" alt="Logo" />.
+- El sistema de preview resolverá ese src al archivo real cargado.
+- Si necesitás íconos no adjuntos, usá SVG inline o CSS, nunca archivos inventados.
+- Replicá con CSS solamente el layout, fondo, textos, posiciones, tamaños, espaciados, bordes, radios, sombras y colores.
+- Respetá proporciones, estilos, márgenes, tamaños de texto, pesos de fuente y alineaciones.
+- Si algo no puede reproducirse exacto, aproximarlo con CSS/SVG y aclararlo.
+- Si es mobile, respetá formato mobile de 390px de ancho.
+- Si es desktop, respetá proporciones desktop.
+- Generá HTML y CSS separados.
+- Usá medidas en px cuando ayuden a copiar mejor la captura.`
+      );
+      return;
+    }
+
+    setInput("Analizá el archivo adjunto y respondé sin inventar contenido.");
+  }, []);
+
+  const loadFiles = useCallback(
+    async (files: File[]) => {
+      const validFiles = files.filter((file) => {
+        const isAllowedByMime = allowedMimeTypes.includes(file.type);
+        const isAllowedByExtension = allowedExtensionRegex.test(file.name);
+
+        return isAllowedByMime || isAllowedByExtension;
+      });
+
+      if (!validFiles.length) {
+        console.warn("[PagoTIC_LoadFiles_Debug] No valid files selected");
+        return;
+      }
+
+      const nextFiles = await Promise.all(validFiles.map(fileToDataUrl));
+
+      setUploadedFiles(nextFiles);
+
+      if (!input.trim()) {
+        setDefaultFilePrompt(nextFiles);
+      }
+
+      console.log("[PagoTIC_LoadFiles_Debug]", {
+        files: nextFiles.length,
+        names: nextFiles.map((file) => file.name),
+        types: nextFiles.map((file) => file.type),
+      });
+    },
+    [fileToDataUrl, input, setDefaultFilePrompt]
+  );
+
+  const handleFilePaste = useCallback(
+    async (event: React.ClipboardEvent<HTMLElement>) => {
+      const filesFromClipboard = Array.from(event.clipboardData.files);
+
+      const filesFromItems = Array.from(event.clipboardData.items)
+        .map((item) => item.getAsFile())
+        .filter((file): file is File => Boolean(file));
+
+      const pastedFiles = [...filesFromClipboard, ...filesFromItems];
+
+      const validFiles = pastedFiles.filter((file) => {
+        const isAllowedByMime = allowedMimeTypes.includes(file.type);
+        const isAllowedByExtension = allowedExtensionRegex.test(file.name);
+
+        return isAllowedByMime || isAllowedByExtension;
+      });
+
+      if (!validFiles.length) {
+        console.log("[PagoTIC_Paste_Debug] No valid file found in clipboard", {
+          files: filesFromClipboard.length,
+          items: event.clipboardData.items.length,
+          itemTypes: Array.from(event.clipboardData.items).map(
+            (item) => item.type
+          ),
+        });
+
+        return;
+      }
+
+      event.preventDefault();
+
+      console.log("[PagoTIC_Paste_Debug] Valid file found", {
+        files: validFiles.length,
+        names: validFiles.map((file) => file.name),
+        types: validFiles.map((file) => file.type),
+      });
+
+      await loadFiles(validFiles);
+    },
+    [loadFiles]
+  );
+
+  const handleFileSelect = useCallback(
+    async (event: React.ChangeEvent<HTMLInputElement>) => {
+      const files = event.target.files;
+
+      if (!files || !files.length) return;
+
+      await loadFiles(Array.from(files));
+    },
+    [loadFiles]
+  );
+
+  const clearFiles = useCallback(() => {
+    setUploadedFiles([]);
+
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  }, []);
+
+  const handleCopy = useCallback((code: string, id: string) => {
+    navigator.clipboard.writeText(code).then(() => {
+      setCopiedBlockId(id);
+
+      setTimeout(() => {
+        setCopiedBlockId(null);
+      }, 2000);
+    });
+  }, []);
+
+  const handleChatSubmit = useCallback(
+    async (event: React.FormEvent<HTMLFormElement>) => {
+      event.preventDefault();
+
+      const trimmedInput = input.trim();
+      const currentUploadedFiles = [...uploadedFiles];
+
+      if (!trimmedInput && !currentUploadedFiles.length) {
+        return;
+      }
+
+      const userMessage: ChatMessage = {
+        id: generateId("user"),
+        role: "user",
+        content:
+          trimmedInput ||
+          "Analizá el archivo adjunto y generá una respuesta técnica útil sin inventar contenido.",
+        attachments: currentUploadedFiles,
+      };
+
+      const assistantMessageId = generateId("assistant");
+
+      const assistantMessage: ChatMessage = {
+        id: assistantMessageId,
+        role: "assistant",
+        content: "",
+        attachments: currentUploadedFiles,
+      };
+
+      setMessages((currentMessages) => [
+        ...currentMessages,
+        userMessage,
+        assistantMessage,
+      ]);
+
+      setInput("");
+      setIsLoading(true);
+
+      console.log("[PagoTIC_Submit_Debug]", {
+        inputLength: userMessage.content.length,
+        uploadedFiles: currentUploadedFiles.length,
+        names: currentUploadedFiles.map((file) => file.name),
+        types: currentUploadedFiles.map((file) => file.type),
+      });
+
+      clearFiles();
+
+      try {
+        const response = await fetch("/api/chat", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            messages: [...messages, userMessage],
+            uploadedFiles: currentUploadedFiles,
+          }),
+        });
+
+        if (!response.ok || !response.body) {
+          throw new Error(`HTTP_ERROR_${response.status}`);
+        }
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+
+        let assistantContent = "";
+
+        while (true) {
+          const { value, done } = await reader.read();
+
+          if (done) break;
+
+          assistantContent += decoder.decode(value, { stream: true });
+
+          setMessages((currentMessages) =>
+            currentMessages.map((message) =>
+              message.id === assistantMessageId
+                ? {
+                    ...message,
+                    content: assistantContent,
+                    attachments: currentUploadedFiles,
+                  }
+                : message
+            )
+          );
+        }
+
+        if (!assistantContent.trim()) {
+          setMessages((currentMessages) =>
+            currentMessages.map((message) =>
+              message.id === assistantMessageId
+                ? {
+                    ...message,
+                    content:
+                      "No recibí respuesta del modelo. Revisá la consola del backend para ver si hubo error en `/api/chat`.",
+                    attachments: currentUploadedFiles,
+                  }
+                : message
+            )
+          );
+        }
+      } catch (error) {
+        console.error("PAGOTIC_FRONT_CHAT_FAILURE:", error);
+
+        setMessages((currentMessages) =>
+          currentMessages.map((message) =>
+            message.id === assistantMessageId
+              ? {
+                  ...message,
+                  content:
+                    "Ocurrió un error al consultar el backend. Revisá la consola de Next para ver el detalle.",
+                  attachments: currentUploadedFiles,
+                }
+              : message
+          )
+        );
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [input, uploadedFiles, messages, generateId, clearFiles]
+  );
+
+  if (!mounted) {
+    return <div className="h-screen bg-gray-50" />;
+  }
 
   return (
-    <div className="flex flex-col h-screen bg-gray-50 text-[#1e1248] font-sans overflow-hidden relative">
-      <header className="p-6 bg-white border-b border-gray-100 flex justify-between items-center z-30 shadow-sm">
+    <div
+      onPaste={handleFilePaste}
+      className="flex flex-col h-screen bg-gray-50 text-[#1e1248] font-sans overflow-hidden relative"
+    >
+      <header className="shrink-0 p-6 bg-white border-b border-gray-100 flex justify-between items-center z-30 shadow-sm">
         <div className="flex items-center gap-4">
           <div className="p-3 bg-[#1e1248] rounded-2xl shadow-lg shadow-[#1e1248]/20">
             <BrainCircuit size={20} className="text-white" />
           </div>
+
           <div>
-            <h2 className="text-sm font-normal tracking-tight text-[#1e1248] uppercase">Pago TIC <span className="text-[#e50051]">AI Assistant</span></h2>
+            <h2 className="text-sm font-normal tracking-tight text-[#1e1248] uppercase">
+              Pago TIC{" "}
+              <span className="text-[#e50051]">AI Assistant</span>
+            </h2>
+
             <div className="flex items-center gap-2">
-              <div className={`h-2 w-2 rounded-full ${isLoading ? "bg-[#e50051] animate-pulse" : "bg-green-500"}`} />
+              <div
+                className={`h-2 w-2 rounded-full ${
+                  isLoading ? "bg-[#e50051] animate-pulse" : "bg-green-500"
+                }`}
+              />
+
               <span className="text-[10px] text-gray-400 font-normal uppercase tracking-widest">
-                {isLoading ? 'IA procesando...' : 'Sistema en linea'}
+                {isLoading ? "IA procesando..." : "Sistema en linea"}
               </span>
             </div>
           </div>
@@ -99,35 +714,66 @@ export default function ChatPage() {
 
         <div className="flex items-center gap-2 bg-gray-50 border border-gray-100 px-4 py-2 rounded-xl">
           <Cpu size={14} className="text-[#1e1248]" />
-          <span className="text-[10px] font-normal text-[#1e1248]/60 uppercase tracking-tighter">Model: <span className="text-[#e50051]">v6-Turbo</span></span>
+          <span className="text-[10px] font-normal text-[#1e1248]/60 uppercase tracking-tighter">
+            Model: <span className="text-[#e50051]">v6-Turbo</span>
+          </span>
         </div>
       </header>
 
-      <div ref={scrollRef} className="flex-1 overflow-y-auto p-6 md:p-12 space-y-8 custom-scrollbar pb-40">
-        {messages.map((m, idx) => (
-          <div key={m.id || idx} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'} animate-in fade-in slide-in-from-bottom-4 duration-300`}>
-            <div className={`flex gap-4 max-w-[85%] md:max-w-[70%] ${m.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
-              <div className={`flex-shrink-0 w-10 h-10 rounded-2xl flex items-center justify-center shadow-sm border ${
-                m.role === 'user' ? 'bg-white border-gray-100 text-[#1e1248]' : 'bg-[#1e1248] border-[#1e1248] text-white'
-              }`}>
-                {m.role === 'user' ? <User size={18} /> : <Bot size={18} className="text-[#e50051]" />}
+      <div
+        ref={scrollRef}
+        className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-6 md:p-12 space-y-8 custom-scrollbar pb-6"
+      >
+        {messages.map((message, index) => (
+          <div
+            key={message.id || index}
+            className={`flex min-w-0 ${
+              message.role === "user" ? "justify-end" : "justify-start"
+            } animate-in fade-in slide-in-from-bottom-4 duration-300`}
+          >
+            <div
+              className={`flex min-w-0 gap-4 max-w-[85%] md:max-w-[70%] ${
+                message.role === "user" ? "flex-row-reverse" : "flex-row"
+              }`}
+            >
+              <div
+                className={`flex-shrink-0 w-10 h-10 rounded-2xl flex items-center justify-center shadow-sm border ${
+                  message.role === "user"
+                    ? "bg-white border-gray-100 text-[#1e1248]"
+                    : "bg-[#1e1248] border-[#1e1248] text-white"
+                }`}
+              >
+                {message.role === "user" ? (
+                  <User size={18} />
+                ) : (
+                  <Bot size={18} className="text-[#e50051]" />
+                )}
               </div>
 
-              <div className={`p-6 rounded-[2rem] text-[14px] leading-relaxed shadow-sm border ${
-                m.role === 'user'
-                  ? 'bg-white border-gray-100 rounded-tr-none text-[#1e1248]'
-                  : 'bg-[#1e1248] border-[#1e1248] rounded-tl-none text-gray-100'
-              }`}>
-                <div className="prose prose-sm max-w-none prose-p:leading-relaxed prose-strong:text-inherit prose-strong:font-normal">
+              <div
+                className={`min-w-0 max-w-full overflow-hidden p-6 rounded-[2rem] text-[14px] leading-relaxed shadow-sm border ${
+                  message.role === "user"
+                    ? "bg-white border-gray-100 rounded-tr-none text-[#1e1248]"
+                    : "bg-[#1e1248] border-[#1e1248] rounded-tl-none text-gray-100"
+                }`}
+              >
+                <div className="prose prose-sm max-w-none min-w-0 overflow-hidden prose-p:leading-relaxed prose-strong:text-inherit prose-strong:font-normal">
                   <ReactMarkdown
                     components={{
-                      code({ node, inline, className, children, ...props }: any) {
-                        const match = /language-(\w+)/.exec(className || '');
-                        const codeContent = String(children).replace(/\n$/, '');
-                        const blockId = `block-${m.id || idx}`;
-                        const isInline = !match;
+                      code({
+                        inline,
+                        className,
+                        children,
+                        ...props
+                      }: any) {
+                        const match = /language-(\w+)/.exec(className || "");
+                        const codeContent = String(children).replace(/\n$/, "");
+                        const blockId = `block-${
+                          message.id || index
+                        }-${codeContent.length}`;
+                        const isInline = inline || !match;
 
-                        if (!isInline) {
+                        if (!isInline && match) {
                           return (
                             <CodeBlock
                               language={match[1]}
@@ -147,46 +793,175 @@ export default function ChatPage() {
                             {children}
                           </code>
                         );
-                      }
+                      },
                     }}
                   >
-                    {m.content}
+                    {message.content}
                   </ReactMarkdown>
+
+                  {message.role === "assistant" && (
+                    <HtmlPreview
+                      content={message.content}
+                      assets={message.attachments || []}
+                    />
+                  )}
                 </div>
               </div>
             </div>
           </div>
         ))}
+
+        {isLoading && (
+          <div className="flex justify-start animate-in fade-in slide-in-from-bottom-4 duration-300">
+            <div className="flex gap-4 max-w-[85%] md:max-w-[70%]">
+              <div className="flex-shrink-0 w-10 h-10 rounded-2xl flex items-center justify-center shadow-sm border bg-[#1e1248] border-[#1e1248] text-white">
+                <Bot size={18} className="text-[#e50051]" />
+              </div>
+
+              <div className="p-6 rounded-[2rem] rounded-tl-none text-[14px] leading-relaxed shadow-sm border bg-[#1e1248] border-[#1e1248] text-gray-100">
+                <div className="flex items-center gap-2 text-xs uppercase tracking-widest text-gray-300">
+                  <Activity
+                    size={14}
+                    className="text-[#e50051] animate-pulse"
+                  />
+                  Analizando...
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
-      <footer className="absolute bottom-0 w-full p-8 bg-gradient-to-t from-gray-50 via-gray-50 to-transparent z-40">
-        <form onSubmit={handleSubmit} className="max-w-4xl mx-auto">
-          <div className={`flex items-center bg-white rounded-[2.5rem] border p-2 transition-all duration-300 shadow-xl ${
-            isLoading ? 'border-[#e50051] ring-4 ring-[#e50051]/5' : 'border-gray-100 focus-within:border-[#1e1248] focus-within:ring-4 focus-within:ring-[#1e1248]/5'
-          }`}>
-            <div className="p-4 text-gray-300">
-              <Activity size={20} className={isLoading ? "text-[#e50051] animate-pulse" : ""} />
+      <footer className="shrink-0 w-full px-6 py-4 bg-[#05020f] border-t border-white/10 z-40">
+        <form onSubmit={handleChatSubmit} className="max-w-4xl mx-auto">
+          {uploadedFiles.length > 0 && (
+            <div className="mb-4 max-w-full overflow-hidden bg-white border border-gray-100 rounded-2xl p-3 shadow-lg">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-xs font-normal text-[#1e1248] uppercase">
+                    Archivo cargado
+                  </p>
+                  <p className="text-[10px] text-gray-400">
+                    Se enviará junto con tu consulta.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={clearFiles}
+                  className="w-9 h-9 rounded-xl text-xs uppercase bg-gray-100 hover:bg-[#e50051] hover:text-white transition-all flex items-center justify-center"
+                  title="Quitar archivos"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+
+              <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
+                {uploadedFiles.map((file, fileIndex) => {
+                  const isImage = file.type.startsWith("image/");
+                  const isPdf =
+                    file.type === "application/pdf" ||
+                    file.name.toLowerCase().endsWith(".pdf");
+
+                  return (
+                    <div
+                      key={`${file.name}-${fileIndex}`}
+                      className="flex shrink-0 items-center gap-3 rounded-xl border border-gray-100 bg-gray-50 px-3 py-2"
+                    >
+                      {isImage ? (
+                        <img
+                          src={file.dataUrl}
+                          alt={file.name}
+                          className="h-12 w-12 rounded-lg object-cover border border-gray-200"
+                        />
+                      ) : (
+                        <div className="h-12 w-12 rounded-lg bg-[#1e1248] text-white flex items-center justify-center">
+                          <FileText size={20} />
+                        </div>
+                      )}
+
+                      <div className="max-w-[220px]">
+                        <p className="truncate text-[11px] text-[#1e1248]">
+                          {file.name || (isPdf ? "documento.pdf" : "archivo")}
+                        </p>
+                        <p className="text-[10px] text-gray-400">
+                          {isPdf ? "PDF" : file.type || "archivo"}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
+          )}
+
+          <div
+            className={`flex items-center bg-white rounded-[2.5rem] border p-2 transition-all duration-300 shadow-xl ${
+              isLoading
+                ? "border-[#e50051] ring-4 ring-[#e50051]/5"
+                : "border-gray-100 focus-within:border-[#1e1248] focus-within:ring-4 focus-within:ring-[#1e1248]/5"
+            }`}
+          >
+            <div className="p-4 text-gray-300">
+              <Activity
+                size={20}
+                className={isLoading ? "text-[#e50051] animate-pulse" : ""}
+              />
+            </div>
+
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              accept=".jpg,.jpeg,.png,.webp,.gif,.pdf,image/*,application/pdf"
+              className="hidden"
+              onChange={handleFileSelect}
+            />
+
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isLoading}
+              className="flex items-center gap-2 px-4 py-3 rounded-2xl text-xs uppercase bg-gray-100 text-[#1e1248] hover:bg-[#e50051] hover:text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <ImageIcon size={16} />
+              Archivo
+            </button>
+
             <input
               ref={inputRef}
-              className="flex-1 bg-transparent px-2 py-4 text-sm text-[#1e1248] outline-none placeholder:text-gray-400 font-normal"
+              className="flex-1 min-w-0 bg-transparent px-4 py-4 text-sm text-[#1e1248] outline-none placeholder:text-gray-400 font-normal"
               value={input}
-              onChange={handleInputChange}
-              placeholder={isLoading ? "IA analizando requerimiento..." : "Escribe tu consulta aqui..."}
+              onChange={(event) => setInput(event.target.value)}
+              onPaste={handleFilePaste}
+              placeholder={
+                isLoading
+                  ? "IA analizando requerimiento..."
+                  : "Escribe tu consulta o adjunta imagen/PDF..."
+              }
               disabled={isLoading}
             />
+
             <button
               type="submit"
-              disabled={isLoading || !input.trim()}
+              disabled={isLoading || (!input.trim() && !uploadedFiles.length)}
               className={`flex items-center gap-2 px-8 py-4 rounded-[2rem] font-normal text-xs uppercase tracking-widest transition-all ${
-                isLoading
-                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                  : 'bg-[#1e1248] text-white hover:bg-[#e50051] shadow-lg shadow-[#1e1248]/20 hover:shadow-[#e50051]/20 active:scale-95'
+                isLoading || (!input.trim() && !uploadedFiles.length)
+                  ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                  : "bg-[#1e1248] text-white hover:bg-[#e50051] shadow-lg shadow-[#1e1248]/20 hover:shadow-[#e50051]/20 active:scale-95"
               }`}
             >
-              {isLoading ? '...' : <><SendHorizontal size={16} /> Enviar</>}
+              {isLoading ? (
+                "..."
+              ) : (
+                <>
+                  <SendHorizontal size={16} />
+                  Enviar
+                </>
+              )}
             </button>
           </div>
+
           <p className="text-center text-[10px] text-gray-400 mt-4 font-normal uppercase tracking-[0.2em]">
             Pago TIC IT Development Core // Secure Workspace
           </p>
@@ -194,10 +969,45 @@ export default function ChatPage() {
       </footer>
 
       <style jsx global>{`
-        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #1e124822; border-radius: 10px; }
-        .prose strong { color: inherit; font-weight: 400; }
-        .prose code { color: #e50051; }
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 4px;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: #1e124822;
+          border-radius: 10px;
+        }
+
+        .prose {
+          max-width: 100%;
+        }
+
+        .prose strong {
+          color: inherit;
+          font-weight: 400;
+        }
+
+        .prose code {
+          color: #e50051;
+          word-break: normal;
+        }
+
+        .prose pre {
+          background: transparent;
+          padding: 0;
+          margin: 0;
+          max-width: 100%;
+          overflow-x: auto;
+        }
+
+        .prose p,
+        .prose li {
+          overflow-wrap: anywhere;
+        }
+
+        iframe {
+          max-width: none;
+        }
       `}</style>
     </div>
   );
