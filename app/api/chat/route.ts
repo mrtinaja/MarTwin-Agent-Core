@@ -389,6 +389,20 @@ function getTargetExtension(lastUserMessage: string) {
   return null;
 }
 
+function isExplicitArtifactGenerationRequest(lastUserMessage: string) {
+  const hasArtifactKeyword =
+    /\b(cv|curriculum|curriculo|curriculum vitae|tarjeta personal|tarjeta|card|flyer|poster|afiche|banner|invitacion|invitacion|presentacion|presentacion|documento|doc|docx|word|pdf|png|svg|jpg|jpeg|gif|html|css|preview|vista previa)\b/i.test(
+      lastUserMessage
+    );
+
+  const hasCreationIntent =
+    /\b(arma|armar|crea|crear|genera|generar|hace|hacer|disena|disenar|diseña|diseñar|converti|convertir|exporta|exportar|devuelve|devolver|responde|responder|prepara|preparar)\b/i.test(
+      lastUserMessage
+    );
+
+  return hasArtifactKeyword && hasCreationIntent;
+}
+
 function isExplicitWorkspaceContextRequest(lastUserMessage: string) {
   return /\b(workspace|documentacion|documentación|archivo local|repo|codigo|código|tsx|ts|js|json|md|ruta|proyecto|contexto local)\b/i.test(
     lastUserMessage
@@ -1623,6 +1637,18 @@ function buildVisualInstructions() {
 - Do not invent filenames or external images.
 - Reproduce what is visible.
 
+TEXT_TO_ARTIFACT_MODE:
+- If the user asks for a CV, personal card, PDF, Word document, image, PNG, SVG, JPG, JPEG, GIF, HTML/CSS or preview from text/context, create a finished visual artifact as HTML and CSS.
+- Treat the requested format as the intended export target, but still return complete HTML and CSS fenced blocks so the UI can render and export it.
+- Design the actual artifact, not instructions about how to design it.
+- Use semantic document structure for CVs, letters and Word/PDF-like outputs.
+- Use fixed or print-friendly dimensions when a physical/exported document is requested:
+  - CV, report, letter, Word or PDF: A4-like layout.
+  - Personal card: business-card-like proportions.
+  - Social/banner/flyer/poster/image: choose a suitable canvas and state it in Control visual.
+- If the user provides text and context, preserve the user-provided facts and do not invent missing personal data.
+- If required data is missing, leave tasteful placeholders only when needed and mark them in Control visual.
+
 EXACT_ASSET_MODE:
 - If the attached image is a closed graphic piece, logo, splash screen, banner, brand plate, card, poster, screenshot-like design, or composition where exact visual fidelity matters, use the attached image as the main visual asset.
 - In exact asset mode, place the image with <img src="EXACT_UPLOADED_FILENAME" /> using the exact filename listed in UPLOADED_ASSETS.
@@ -1702,9 +1728,11 @@ export async function POST(req: Request) {
     const hasImage = imageFiles.length > 0;
     const hasPdf = pdfFiles.length > 0;
     const hasFile = uploadedFiles.length > 0;
+    const shouldGenerateArtifactFromText =
+      isExplicitArtifactGenerationRequest(lastUserMessage);
 
     const shouldGenerateVisualOutput =
-      hasFile && requestedFileTaskMode === "visual";
+      requestedFileTaskMode === "visual" || shouldGenerateArtifactFromText;
 
     const shouldLoadLocalContext =
       !shouldGenerateVisualOutput &&

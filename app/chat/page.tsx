@@ -23,6 +23,9 @@ import {
   ImageIcon,
   X,
   FileText,
+  Download,
+  FileImage,
+  Printer,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
@@ -361,6 +364,115 @@ function buildPreviewHtml(content: string, assets: UploadedFile[] = []) {
 `;
 }
 
+function getExportDocumentParts(previewHtml: string) {
+  const styles = Array.from(
+    previewHtml.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/gi)
+  )
+    .map((match) => match[1])
+    .join("\n");
+  const bodyMatch = previewHtml.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+  const body = bodyMatch?.[1] || previewHtml;
+
+  return { styles, body };
+}
+
+function createArtifactFileName(extension: string) {
+  const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
+
+  return `martwin-artifact-${stamp}.${extension}`;
+}
+
+function downloadBlob(blob: Blob, fileName: string) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+
+  link.href = url;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function buildExportSvg(previewHtml: string, width: number, height: number) {
+  const { styles, body } = getExportDocumentParts(previewHtml);
+
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
+  <foreignObject width="100%" height="100%">
+    <div xmlns="http://www.w3.org/1999/xhtml">
+      <style>
+        html, body { margin: 0; width: ${width}px; min-height: ${height}px; overflow: hidden; }
+        ${styles}
+      </style>
+      ${body}
+    </div>
+  </foreignObject>
+</svg>`;
+}
+
+async function rasterizeSvg(
+  svgText: string,
+  width: number,
+  height: number,
+  mimeType: "image/png" | "image/jpeg" | "image/gif"
+) {
+  const svgBlob = new Blob([svgText], {
+    type: "image/svg+xml;charset=utf-8",
+  });
+  const svgUrl = URL.createObjectURL(svgBlob);
+
+  try {
+    const image = new Image();
+
+    await new Promise<void>((resolve, reject) => {
+      image.onload = () => resolve();
+      image.onerror = () =>
+        reject(new Error("No se pudo rasterizar el artefacto."));
+      image.src = svgUrl;
+    });
+
+    const canvas = document.createElement("canvas");
+    const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+
+    canvas.width = Math.round(width * pixelRatio);
+    canvas.height = Math.round(height * pixelRatio);
+
+    const context = canvas.getContext("2d");
+
+    if (!context) {
+      throw new Error("Canvas no disponible para exportar la imagen.");
+    }
+
+    context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+
+    if (mimeType === "image/jpeg") {
+      context.fillStyle = "#ffffff";
+      context.fillRect(0, 0, width, height);
+    }
+
+    context.drawImage(image, 0, 0, width, height);
+
+    return await new Promise<Blob>((resolve, reject) => {
+      canvas.toBlob(
+        (blob) => {
+          if (!blob) {
+            reject(new Error("El navegador no pudo crear el archivo."));
+            return;
+          }
+
+          resolve(blob);
+        },
+        mimeType,
+        0.94
+      );
+    });
+  } finally {
+    URL.revokeObjectURL(svgUrl);
+  }
+}
+
 const HtmlPreview = ({
   content,
   assets = [],
@@ -368,11 +480,14 @@ const HtmlPreview = ({
   content: string;
   assets?: UploadedFile[];
 }) => {
+  const [exportingFormat, setExportingFormat] = useState<string | null>(null);
   const previewHtml = buildPreviewHtml(content, assets);
 
   if (!previewHtml) return null;
 
   const widePreview = shouldUseWidePreview(content);
+  const exportWidth = widePreview ? 960 : 390;
+  const exportHeight = widePreview ? 720 : 760;
 
   const openPreview = () => {
     const previewWindow = window.open("", "_blank");
@@ -382,6 +497,88 @@ const HtmlPreview = ({
     previewWindow.document.open();
     previewWindow.document.write(previewHtml);
     previewWindow.document.close();
+  };
+
+  const exportHtml = () => {
+    downloadBlob(
+      new Blob([previewHtml], { type: "text/html;charset=utf-8" }),
+      createArtifactFileName("html")
+    );
+  };
+
+  const exportSvg = () => {
+    const svgText = buildExportSvg(previewHtml, exportWidth, exportHeight);
+
+    downloadBlob(
+      new Blob([svgText], { type: "image/svg+xml;charset=utf-8" }),
+      createArtifactFileName("svg")
+    );
+  };
+
+  const exportRaster = async (
+    extension: "png" | "jpg" | "gif",
+    mimeType: "image/png" | "image/jpeg" | "image/gif"
+  ) => {
+    setExportingFormat(extension);
+
+    try {
+      const svgText = buildExportSvg(previewHtml, exportWidth, exportHeight);
+      const blob = await rasterizeSvg(
+        svgText,
+        exportWidth,
+        exportHeight,
+        mimeType
+      );
+
+      if (mimeType === "image/gif" && blob.type !== "image/gif") {
+        window.alert(
+          "Este navegador no puede exportar GIF directamente. Exporta PNG/JPG o SVG desde este panel."
+        );
+        return;
+      }
+
+      downloadBlob(blob, createArtifactFileName(extension));
+    } catch (error) {
+      console.error("PAGOTIC_EXPORT_FAILURE:", error);
+      window.alert(
+        "No pude exportar la imagen desde el navegador. Proba abrir la vista previa y usar imprimir/guardar."
+      );
+    } finally {
+      setExportingFormat(null);
+    }
+  };
+
+  const exportPdf = () => {
+    const previewWindow = window.open("", "_blank");
+
+    if (!previewWindow) return;
+
+    previewWindow.document.open();
+    previewWindow.document.write(previewHtml);
+    previewWindow.document.close();
+    previewWindow.focus();
+
+    window.setTimeout(() => {
+      previewWindow.print();
+    }, 300);
+  };
+
+  const exportWord = () => {
+    const wordHtml = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>MarTwin Artifact</title>
+</head>
+<body>
+  ${previewHtml}
+</body>
+</html>`;
+
+    downloadBlob(
+      new Blob([wordHtml], { type: "application/msword;charset=utf-8" }),
+      createArtifactFileName("doc")
+    );
   };
 
   return (
@@ -396,13 +593,77 @@ const HtmlPreview = ({
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={openPreview}
-          className="rounded-xl bg-[#e50051] px-4 py-2 text-[10px] uppercase tracking-widest text-white transition-all hover:opacity-90 active:scale-95"
-        >
-          Abrir
-        </button>
+        <div className="flex flex-wrap justify-end gap-2">
+          <button
+            type="button"
+            onClick={openPreview}
+            className="inline-flex items-center gap-1.5 rounded-xl bg-[#e50051] px-3 py-2 text-[10px] uppercase tracking-widest text-white transition-all hover:opacity-90 active:scale-95"
+          >
+            <FileImage size={13} />
+            Abrir
+          </button>
+
+          <button
+            type="button"
+            onClick={exportHtml}
+            className="inline-flex items-center gap-1.5 rounded-xl bg-white/10 px-3 py-2 text-[10px] uppercase tracking-widest text-white transition-all hover:bg-white/20 active:scale-95"
+          >
+            <Download size={13} />
+            HTML
+          </button>
+
+          <button
+            type="button"
+            onClick={exportSvg}
+            className="rounded-xl bg-white/10 px-3 py-2 text-[10px] uppercase tracking-widest text-white transition-all hover:bg-white/20 active:scale-95"
+          >
+            SVG
+          </button>
+
+          <button
+            type="button"
+            onClick={() => exportRaster("png", "image/png")}
+            disabled={Boolean(exportingFormat)}
+            className="rounded-xl bg-white/10 px-3 py-2 text-[10px] uppercase tracking-widest text-white transition-all hover:bg-white/20 active:scale-95 disabled:opacity-50"
+          >
+            {exportingFormat === "png" ? "..." : "PNG"}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => exportRaster("jpg", "image/jpeg")}
+            disabled={Boolean(exportingFormat)}
+            className="rounded-xl bg-white/10 px-3 py-2 text-[10px] uppercase tracking-widest text-white transition-all hover:bg-white/20 active:scale-95 disabled:opacity-50"
+          >
+            {exportingFormat === "jpg" ? "..." : "JPG"}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => exportRaster("gif", "image/gif")}
+            disabled={Boolean(exportingFormat)}
+            className="rounded-xl bg-white/10 px-3 py-2 text-[10px] uppercase tracking-widest text-white transition-all hover:bg-white/20 active:scale-95 disabled:opacity-50"
+          >
+            {exportingFormat === "gif" ? "..." : "GIF"}
+          </button>
+
+          <button
+            type="button"
+            onClick={exportPdf}
+            className="inline-flex items-center gap-1.5 rounded-xl bg-white/10 px-3 py-2 text-[10px] uppercase tracking-widest text-white transition-all hover:bg-white/20 active:scale-95"
+          >
+            <Printer size={13} />
+            PDF
+          </button>
+
+          <button
+            type="button"
+            onClick={exportWord}
+            className="rounded-xl bg-white/10 px-3 py-2 text-[10px] uppercase tracking-widest text-white transition-all hover:bg-white/20 active:scale-95"
+          >
+            Word
+          </button>
+        </div>
       </div>
 
       <div className="bg-[#05020f] p-6 overflow-x-auto">
