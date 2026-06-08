@@ -106,7 +106,7 @@ const openRouterSiteUrl =
   process.env.OPENROUTER_SITE_URL || "http://localhost:3000";
 
 const openRouterAppName =
-  process.env.OPENROUTER_APP_NAME || "Pago TIC AI Assistant";
+  process.env.OPENROUTER_APP_NAME || "MarTwin AI Assistant";
 
 const sectors = [
   { id: "REQUIREMENTS", path: "documentacion/requirements" },
@@ -118,7 +118,7 @@ const sectors = [
   { id: "LEGACY_INPUTS", path: "documentacion/logs_cotizacion" },
 ];
 
-type PagoTicMessage = {
+type MarTwinMessage = {
   id?: string;
   role: "system" | "user" | "assistant";
   content: unknown;
@@ -338,7 +338,7 @@ function isQuotaError(error: unknown) {
   );
 }
 
-function getMessageText(message: PagoTicMessage | undefined): string {
+function getMessageText(message: MarTwinMessage | undefined): string {
   if (!message) return "";
 
   if (typeof message.content === "string") {
@@ -377,6 +377,26 @@ function shouldSkipLocalContext(lastUserMessage: string) {
   );
 }
 
+function getFastLocalReply(lastUserMessage: string) {
+  const cleanMessage = lastUserMessage.trim().toLowerCase();
+  const isShortGreeting =
+    cleanMessage.length <= 40 &&
+    /^(hola+|buenas|hey|hi|hello)\b/i.test(cleanMessage) &&
+    !/\b(necesito|genera|generar|arma|armar|crea|crear|revisa|revisar|documenta|documentar|template|plantilla|archivo|codigo|c[oó]digo)\b/i.test(
+      cleanMessage
+    );
+
+  if (isShortGreeting) {
+    return "Hola, Martin. Estoy listo. Decime que queres armar, revisar o documentar.";
+  }
+
+  if (/^(status|estado|inicio)$/i.test(cleanMessage)) {
+    return "Sistema en linea. Puedo ayudarte con desarrollo, documentacion, QA, debugging y automatizacion.";
+  }
+
+  return "";
+}
+
 function getTargetExtension(lastUserMessage: string) {
   if (lastUserMessage.includes(".tsx")) return ".tsx";
   if (lastUserMessage.includes(".ts")) return ".ts";
@@ -389,7 +409,114 @@ function getTargetExtension(lastUserMessage: string) {
   return null;
 }
 
+function isDocsSquadTemplateRequest(lastUserMessage: string) {
+  const wantsTemplateDocs =
+    /\b(template|plantilla)\b/i.test(lastUserMessage) &&
+    /\b(documentacion|documentaci[oÃ³]n|docs?)\b/i.test(lastUserMessage);
+  const wantsDownloadableReport =
+    /\b(informe|documento|documentacion|documentaci[oÃ³]n|docs?)\b/i.test(
+      lastUserMessage
+    ) &&
+    /\b(descargar|download|bajar|docx|word|template|plantilla)\b/i.test(
+      lastUserMessage
+    );
+
+  return wantsTemplateDocs || wantsDownloadableReport;
+}
+
+function isZurichMigrationReportRequest(lastUserMessage: string) {
+  return (
+    /\b(zuric|zurich|zurich santander)\b/i.test(lastUserMessage) &&
+    /\b(migracion|migraci[oÃ³]n|migrados?|realizada|reportes?)\b/i.test(
+      lastUserMessage
+    ) &&
+    /\b(informe|resumen|estado|balance|documentacion|documentaci[oÃ³]n|descargar|download|docx|word)\b/i.test(
+      lastUserMessage
+    )
+  );
+}
+function isDetailedReportRequest(lastUserMessage: string) {
+  return /\b(detallado|minucioso|completo|extenso|profundo|exhaustivo|amplio|paso a paso)\b/i.test(
+    lastUserMessage
+  );
+}
+
+function getTargetNumericFilter(lastUserMessage: string) {
+  const quantityMatch = lastUserMessage.match(
+    /\b\d+\s+(?:reportes?|migraciones?|objetos?|archivos?)\b/i
+  );
+
+  if (quantityMatch) return null;
+
+  return lastUserMessage.match(/\d+/);
+}
+
+function extractObjectKeys(block: string, limit = 8) {
+  return Array.from(block.matchAll(/^\s*([A-Z0-9_]+)\s*:/gm))
+    .map((match) => match[1])
+    .filter((value, index, values) => values.indexOf(value) === index)
+    .slice(0, limit);
+}
+
+function getReportDescription(content: string) {
+  const inlineMatch = content.match(/description\s*:\s*["'`]([\s\S]+?)["'`]/);
+
+  if (inlineMatch?.[1]) {
+    return inlineMatch[1].replace(/\s+/g, " ").trim();
+  }
+
+  return "Reporte migrado dentro del alcance Zurich Santander.";
+}
+
+function buildZurichReportInventoryContext() {
+  const reportsDir = path.resolve(process.cwd(), "documentacion", "test");
+
+  if (!fs.existsSync(reportsDir)) return "";
+
+  const files = fs
+    .readdirSync(reportsDir)
+    .filter((file) => file.toLowerCase().endsWith(".md"))
+    .filter((file) => path.basename(file, ".md").toUpperCase() !== "TESTEO")
+    .sort();
+
+  const entries = files.map((file, index) => {
+    const filePath = path.join(reportsDir, file);
+    const content = fs.readFileSync(filePath, "utf8");
+    const name = path.basename(file, ".md");
+    const description = getReportDescription(content).slice(0, 280);
+    const paramsBlock =
+      content.match(/params\s*:\s*\{([\s\S]*?)\n\s*\}/)?.[1] || "";
+    const queriesBlock =
+      content.match(/queries\s*:\s*\{([\s\S]*?)\n\s*\}/)?.[1] || "";
+    const params = extractObjectKeys(paramsBlock, 8);
+    const queries = extractObjectKeys(queriesBlock, 10);
+    const hasLayout = /\blayout\s*:/i.test(content);
+    const hasSql = /SELECT\s+/i.test(content);
+    const signals = [
+      hasSql ? "SQL Oracle migrado" : "",
+      hasLayout ? "layout HTML/PDF" : "",
+    ].filter(Boolean);
+
+    return [
+      `#${index + 1} ${name}`,
+      `Descripcion: ${description}`,
+      `Parametros: ${params.join(", ") || "sin parametros detectados"}`,
+      `Queries: ${queries.join(", ") || "queries embebidas/no detectadas"}`,
+      `Seniales tecnicas: ${signals.join(", ") || "modelo funcional migrado"}`,
+    ].join("\n");
+  });
+
+  return `
+<ZURICH_REPORT_INVENTORY total="${files.length}">
+${entries.join("\n\n")}
+</ZURICH_REPORT_INVENTORY>`;
+}
+
 function isExplicitArtifactGenerationRequest(lastUserMessage: string) {
+  if (isDocsSquadTemplateRequest(lastUserMessage)) {
+    return false;
+  }
+
   const asksForMockPreview =
     /\b(mock|mockup|mockea|mockear|mockeando|preview|vista previa|visualiza|visualizar|render|renderiza|renderizar)\b/i.test(
       lastUserMessage
@@ -465,7 +592,7 @@ function dataUrlToGeminiInlineData(file: UploadedFile) {
   };
 }
 
-function buildTranscript(messages: PagoTicMessage[]) {
+function buildTranscript(messages: MarTwinMessage[]) {
   const compactMessages = messages.slice(-6);
 
   const transcript = compactMessages
@@ -480,7 +607,7 @@ function buildTranscript(messages: PagoTicMessage[]) {
   return transcript.slice(-12000);
 }
 
-function buildUserPrompt(messages: PagoTicMessage[]) {
+function buildUserPrompt(messages: MarTwinMessage[]) {
   const transcript = buildTranscript(messages);
   const lastMessage = messages[messages.length - 1];
   const lastUserText = getMessageText(lastMessage);
@@ -519,7 +646,7 @@ function buildUploadedFileInputParts(uploadedFiles: UploadedFile[]) {
 }
 
 function buildResponseInput(
-  messages: PagoTicMessage[],
+  messages: MarTwinMessage[],
   uploadedFiles: UploadedFile[],
   systemPrompt: string
 ): ResponseInput {
@@ -1049,7 +1176,7 @@ function buildLocalMockArtifact(lastUserMessage: string, reason: string) {
         <h1>Control de operaciones</h1>
         <p class="subtitle">Preview con datos mockeados desde plantilla Markdown/SQL.</p>
       </div>
-      <div class="stamp">Pago TIC<br />Mock Preview</div>
+      <div class="stamp">MarTwin<br />Mock Preview</div>
     </header>
 
     <section class="filters">
@@ -1370,7 +1497,7 @@ dd {
       <div>
         <h2>Experiencia</h2>
         <ul>
-          <li><strong>Pago TIC</strong><span>Frontend, automatización y documentación técnica.</span></li>
+          <li><strong>MarTwin</strong><span>Frontend, automatización y documentación técnica.</span></li>
           <li><strong>MarTwin Labs</strong><span>Diseño de interfaces, APIs y flujos internos.</span></li>
         </ul>
       </div>
@@ -1901,7 +2028,7 @@ async function createOpenAITextStream({
   systemPrompt,
   maxOutputTokens,
 }: {
-  messages: PagoTicMessage[];
+  messages: MarTwinMessage[];
   uploadedFiles: UploadedFile[];
   systemPrompt: string;
   maxOutputTokens: number;
@@ -2177,7 +2304,7 @@ async function createProviderTextStream({
   maxOutputTokens,
   isVisualRequest,
 }: {
-  messages: PagoTicMessage[];
+  messages: MarTwinMessage[];
   uploadedFiles: UploadedFile[];
   systemPrompt: string;
   maxOutputTokens: number;
@@ -2435,7 +2562,7 @@ export async function POST(req: Request) {
   try {
     const body = await req.json();
 
-    const messages: PagoTicMessage[] = Array.isArray(body.messages)
+    const messages: MarTwinMessage[] = Array.isArray(body.messages)
       ? body.messages
       : [];
 
@@ -2455,11 +2582,29 @@ export async function POST(req: Request) {
     const hasImage = imageFiles.length > 0;
     const hasPdf = pdfFiles.length > 0;
     const hasFile = uploadedFiles.length > 0;
+    const fastLocalReply = !hasFile ? getFastLocalReply(lastUserMessage) : "";
+
+    if (fastLocalReply) {
+      return new Response(buildPlainTextStream(fastLocalReply), {
+        status: 200,
+        headers: {
+          "Content-Type": "text/plain; charset=utf-8",
+          "Cache-Control": "no-cache, no-transform",
+        },
+      });
+    }
+
+    const isDocsSquadRequest = isDocsSquadTemplateRequest(lastUserMessage);
+    const isZurichMigrationRequest =
+      isZurichMigrationReportRequest(lastUserMessage);
+    const isDetailedZurichMigrationRequest =
+      isZurichMigrationRequest && isDetailedReportRequest(lastUserMessage);
     const shouldGenerateArtifactFromText =
       isExplicitArtifactGenerationRequest(lastUserMessage);
 
     const shouldGenerateVisualOutput =
-      requestedFileTaskMode === "visual" || shouldGenerateArtifactFromText;
+      (requestedFileTaskMode === "visual" && !isDocsSquadRequest) ||
+      shouldGenerateArtifactFromText;
 
     const shouldLoadLocalContext =
       !shouldSkipLocalContext(lastUserMessage) &&
@@ -2467,7 +2612,7 @@ export async function POST(req: Request) {
       (!shouldGenerateVisualOutput ||
         isExplicitWorkspaceContextRequest(lastUserMessage));
 
-    console.log("[PagoTIC_File_Debug]", {
+    console.log("[MarTwin_File_Debug]", {
       aiProvider,
       geminiFallback: enableGeminiFallback,
       openRouterFallback: enableOpenRouterFallback,
@@ -2476,6 +2621,9 @@ export async function POST(req: Request) {
       imageFiles: imageFiles.length,
       pdfFiles: pdfFiles.length,
       requestedFileTaskMode,
+      isDocsSquadRequest,
+      isZurichMigrationRequest,
+      isDetailedZurichMigrationRequest,
       shouldGenerateVisualOutput,
       shouldLoadLocalContext,
       textModels: openRouterModelList,
@@ -2488,8 +2636,53 @@ export async function POST(req: Request) {
     const fileList: string[] = [];
 
     if (shouldLoadLocalContext) {
-      const numericMatch = lastUserMessage.match(/\d+/);
+      const numericMatch = getTargetNumericFilter(lastUserMessage);
       const targetExtension = getTargetExtension(lastUserMessage);
+      const appendWorkspaceFile = (
+        relativePath: string,
+        sectorId: string,
+        maxChars = 45000
+      ) => {
+        if (contextFromDocs.length > 65000) return;
+
+        const filePath = path.resolve(process.cwd(), relativePath);
+
+        if (!fs.existsSync(filePath) || !fs.lstatSync(filePath).isFile()) {
+          return;
+        }
+
+        const fileName = path.basename(filePath);
+
+        if (fileList.includes(fileName)) return;
+
+        const content = fs.readFileSync(filePath, "utf8").slice(0, maxChars);
+
+        fileList.push(fileName);
+
+        contextFromDocs += `
+<WORKSPACE_OBJECT_ENTRY name="${fileName}" sector="${sectorId}">
+${content}
+</WORKSPACE_OBJECT_ENTRY>\n`;
+      };
+
+      if (isZurichMigrationRequest) {
+        const inventoryContext = buildZurichReportInventoryContext();
+
+        if (inventoryContext) {
+          contextFromDocs += inventoryContext;
+        }
+
+        appendWorkspaceFile(
+          "documentacion/prompts/migracion_zurich.md",
+          "ZURICH_MIGRATION",
+          isDetailedZurichMigrationRequest ? 52000 : 28000
+        );
+        appendWorkspaceFile(
+          "documentacion/prompts/prompt_inicial.md",
+          "ZURICH_OPERATIONAL_CONTEXT",
+          isDetailedZurichMigrationRequest ? 26000 : 12000
+        );
+      }
 
       for (const sector of sectors) {
         const fullPath = path.resolve(process.cwd(), sector.path);
@@ -2517,6 +2710,7 @@ export async function POST(req: Request) {
 
         for (const file of matches) {
           if (contextFromDocs.length > 65000) break;
+          if (fileList.includes(file)) continue;
 
           const filePath = path.join(fullPath, file);
 
@@ -2532,7 +2726,7 @@ ${content}
 </WORKSPACE_OBJECT_ENTRY>\n`;
 
           console.log(
-            `[PagoTIC_Context_Load]: Inyectando ${file} (${content.length} bytes)`
+            `[MarTwin_Context_Load]: Inyectando ${file} (${content.length} bytes)`
           );
         }
       }
@@ -2580,12 +2774,33 @@ OPERATOR_ID: MARTIN.
 TEMPERATURE_LOCK: 0.0.
 
 CORE_INSTRUCTIONS:
-- You are Pago TIC IT Development Core, a senior technical assistant.
+- You are MarTwin IT Development Core, a senior technical assistant.
 - Help with requirements, architecture, frontend, backend, QA, debugging, documentation, automation and technical planning.
 - Use WORKSPACE_OBJECT_ENTRY context only when relevant.
-- If multiple workspace files are detected (${fileList.join(", ")}), ask for clarification before processing.
+${isZurichMigrationRequest ? "- For Zurich migration reports, never ask for clarification only because multiple report files are present; synthesize the requested report from the available inventory." : `- If multiple workspace files are detected (${fileList.join(", ")}), ask for clarification before processing.`}
 
 ${shouldGenerateVisualOutput ? buildVisualInstructions() : buildAnalysisInstructions()}
+
+${isDocsSquadRequest ? `DOCS_SQUAD_TEMPLATE_MODE:
+- The user wants a technical documentation report that will be downloaded with the corporate Squad DOCX template.
+- Answer with the final report content in clean Markdown.
+- Start with one clear H1 title.
+- Include concise sections for objective, functional description, technical details, scope, assumptions, risks and next steps when applicable.
+- Do not generate HTML, CSS, JSON, code fences or visual preview unless explicitly requested.
+- Do not say that you cannot create the DOCX; the UI will create it from your answer.` : ""}
+
+${isZurichMigrationRequest ? `ZURICH_MIGRATION_REPORT_MODE:
+- The user is asking for a report about an already performed Zurich report migration.
+- Treat "31 reportes" or similar wording as the requested scope/quantity, not as a missing file id.
+- Do not block the answer by saying only a few report files are available when the workspace contains general Zurich migration context.
+- Use ZURICH_REPORT_INVENTORY as the authoritative list of report files available for per-report detail.
+- If the user asks for "cada uno", include one subsection per report from ZURICH_REPORT_INVENTORY.
+- Do not output placeholders such as "[NOMBRE_DEL_REPORTE]", "[...]", "[DESCRIPCION]" or instructions to manually fill the report.
+- Do not invent a Squad UI download flow. The frontend will show the Docs Squad button when the answer is ready.
+- If the user asks for an informe general, produce a general executive/technical report covering the migration as a whole.
+- If the user explicitly asks for "detallado", "minucioso", "completo", "extenso", "profundo" or "exhaustivo", expand the report with more sections, risks, methodology, QA, architecture, lessons learned and operational conclusions.
+- If the available workspace context mentions 32 but the user asks for 31, respect the user's requested count in the report and avoid arguing about the discrepancy unless it materially affects a specific calculation.
+- Use Markdown and avoid tables unless they make the report clearer.` : ""}
 
 ANTI_HALLUCINATION_RULES:
 - Do not invent visible content, labels, data, names, numbers, logos, icons, colors or layout elements.
@@ -2698,7 +2913,7 @@ ${contextFromDocs || "WAITING_FOR_COMMANDS"}`;
       },
     });
   } catch (error) {
-    console.error("PAGOTIC_CHAT_FAILURE:", error);
+    console.error("MARTWIN_CHAT_FAILURE:", error);
 
     const message =
       error instanceof Error

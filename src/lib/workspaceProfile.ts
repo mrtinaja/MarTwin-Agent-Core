@@ -18,7 +18,7 @@ export type WorkspaceSection = {
 };
 
 export const workspaceProfile = {
-  productName: "Pago TIC",
+  productName: "MarTwin",
   workspaceName: "IT Development Agent",
   domain: "Desarrollo IT general",
   assistantName: "AI Assistant",

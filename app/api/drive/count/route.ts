@@ -1,81 +1,169 @@
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 export const revalidate = 0;
+export const runtime = "nodejs";
 
-import { google } from 'googleapis';
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/app/api/auth/[...nextauth]/auth";
+import { google } from "googleapis";
 import { NextResponse } from "next/server";
 
-// --- SISTEMA DE CACHÉ MEJORADO ---
-const driveCache = new Map<string, { data: any, timestamp: number }>();
-const CACHE_TTL = 1000 * 60 * 5; // 5 minutos para el índice de títulos
+type DriveFileItem = {
+  id?: string | null;
+  name?: string | null;
+  mimeType?: string | null;
+  modifiedTime?: string | null;
+  webViewLink?: string | null;
+};
+
+type DriveIndexResult = {
+  kind: "drive#index";
+  total: number;
+  titles: string;
+  source: "live_network" | "cache";
+};
+
+type DriveListResult = {
+  total: number;
+  files: DriveFileItem[];
+  source: "live_network" | "cache";
+  folderUrl?: string;
+};
+
+type DriveCacheValue = {
+  data: DriveIndexResult | DriveListResult;
+  timestamp: number;
+};
+
+const driveCache = new Map<string, DriveCacheValue>();
+const CACHE_TTL = 1000 * 60 * 5;
+
+function getErrorMessage(error: unknown) {
+  return error instanceof Error ? error.message : "Error inesperado.";
+}
+
+function escapeDriveQueryValue(value: string) {
+  return value.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+}
+
+function getGoogleDriveFolderId() {
+  return process.env.GOOGLE_DRIVE_FOLDER_ID?.trim();
+}
+
+function getGoogleDriveFolderUrl() {
+  const folderId = getGoogleDriveFolderId();
+
+  if (!folderId) {
+    return undefined;
+  }
+
+  return `https://drive.google.com/drive/folders/${folderId}`;
+}
+
+function getOAuthDriveClient() {
+  const clientId = process.env.GOOGLE_CLIENT_ID?.trim();
+  const clientSecret = process.env.GOOGLE_CLIENT_SECRET?.trim();
+  const redirectUri = process.env.GOOGLE_REDIRECT_URI?.trim();
+  const refreshToken = process.env.GOOGLE_REFRESH_TOKEN?.trim();
+
+  if (!clientId || !clientSecret || !redirectUri || !refreshToken) {
+    throw new Error(
+      "Faltan GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REDIRECT_URI o GOOGLE_REFRESH_TOKEN."
+    );
+  }
+
+  const oauth2Client = new google.auth.OAuth2(
+    clientId,
+    clientSecret,
+    redirectUri
+  );
+
+  oauth2Client.setCredentials({
+    refresh_token: refreshToken,
+  });
+
+  return google.drive({
+    version: "v3",
+    auth: oauth2Client,
+  });
+}
+
+function buildDriveQuery(query: string) {
+  const filters: string[] = ["trashed = false"];
+
+  if (query.trim()) {
+    filters.push(`name contains '${escapeDriveQueryValue(query.trim())}'`);
+  }
+
+  return filters.join(" and ");
+}
 
 export async function GET(req: Request) {
   try {
-    const session: any = await getServerSession(authOptions);
-
-    if (!session?.accessToken) {
-      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-    }
-
     const { searchParams } = new URL(req.url);
-    const query = searchParams.get('q') || "";
-    const mode = searchParams.get('mode'); // 'index' para Pago TIC RAG
-    
-    const cacheKey = `${session.user.email}-${query}-${mode}`;
+    const query = searchParams.get("q") || "";
+    const mode = searchParams.get("mode");
+    const isIndex = mode === "index";
 
-    // 1. VERIFICAR CACHÉ
+    const cacheKey = `all-accessible-${query}-${mode || "list"}`;
     const cached = driveCache.get(cacheKey);
-    if (cached && (Date.now() - cached.timestamp < CACHE_TTL)) {
-      console.log("⚡ [DRIVE] Servido desde caché de arquitectura.");
-      return NextResponse.json(cached.data);
+
+    if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+      console.log("⚡ [DRIVE] Servido desde caché OAuth.");
+
+      return NextResponse.json({
+        ...cached.data,
+        source: "cache",
+      });
     }
 
-    const oauth2Client = new google.auth.OAuth2(
-      process.env.GOOGLE_CLIENT_ID,
-      process.env.GOOGLE_CLIENT_SECRET
-    );
-    oauth2Client.setCredentials({ access_token: session.accessToken });
-    const drive = google.drive({ version: 'v3', auth: oauth2Client });
+    const drive = getOAuthDriveClient();
+    const qFilter = buildDriveQuery(query);
 
-    // 2. CONSTRUCCIÓN DE QUERY FILTRADA
-    const qFilter = query 
-      ? `name contains '${query}' and trashed = false` 
-      : "trashed = false";
-
-    // 3. OPTIMIZACIÓN DE CARGA (L3 Protocol)
-    // Si es modo index, pedimos 1000 resultados y SOLO el campo name
-    const isIndex = mode === 'index';
     const response = await drive.files.list({
-      pageSize: isIndex ? 1000 : 50, 
-      fields: isIndex ? 'files(name)' : 'files(id, name, mimeType, modifiedTime, webViewLink)', 
+      pageSize: isIndex ? 1000 : 100,
+      fields: isIndex
+        ? "files(name)"
+        : "files(id,name,mimeType,modifiedTime,webViewLink)",
       q: qFilter,
-      spaces: 'drive',
+      spaces: "drive",
+      orderBy: "modifiedTime desc",
+      supportsAllDrives: true,
+      includeItemsFromAllDrives: true,
     });
 
-    const files = response.data.files || [];
-    
-    // 4. FORMATEO PARA CONSUMO DE IA
-    // Si Pago TIC pide el índice, le mandamos un objeto optimizado para su contexto
-    const result = isIndex ? {
-      kind: "drive#index",
-      total: files.length,
-      titles: files.map(f => f.name).join(' | ') // Formato ultra-compacto para tokens
-    } : { 
-      total: files.length, 
-      files: files,
-      source: 'live_network'
-    };
+    const files = (response.data.files || []) as DriveFileItem[];
 
-    // 5. ACTUALIZAR CACHÉ Y RESPONDER
-    driveCache.set(cacheKey, { data: result, timestamp: Date.now() });
+    const result: DriveIndexResult | DriveListResult = isIndex
+      ? {
+          kind: "drive#index",
+          total: files.length,
+          titles: files
+            .map((file) => file.name || "")
+            .filter(Boolean)
+            .join(" | "),
+          source: "live_network",
+        }
+      : {
+          total: files.length,
+          files,
+          source: "live_network",
+          folderUrl: getGoogleDriveFolderUrl(),
+        };
+
+    driveCache.set(cacheKey, {
+      data: result,
+      timestamp: Date.now(),
+    });
 
     return NextResponse.json(result);
+  } catch (error: unknown) {
+    const message = getErrorMessage(error);
 
-  } catch (error: any) {
-    console.error("❌ DRIVE_CRITICAL_ERROR:", error.message);
+    console.error("❌ DRIVE_CRITICAL_ERROR:", message);
+
     return NextResponse.json(
-      { error: "Protocolo de red interrumpido", details: error.message }, 
+      {
+        error: "Protocolo de red interrumpido",
+        details: message,
+      },
       { status: 500 }
     );
   }

@@ -20,7 +20,7 @@ export async function POST(req: Request) {
     oauth2Client.setCredentials({ access_token: session.accessToken });
     const calendar = google.calendar({ version: 'v3', auth: oauth2Client });
 
-    // --- FUNCIÓN DE LIMPIEZA DE FECHA (Optimización de Pago TIC) ---
+    // --- FUNCIÓN DE LIMPIEZA DE FECHA (Optimización de MarTwin) ---
     const formatToGoogleDate = (input: any) => {
       const value = typeof input === 'object' ? (input.dateTime || input.date) : input;
       if (!value) throw new Error("Fecha faltante");
@@ -38,8 +38,8 @@ export async function POST(req: Request) {
     };
 
     const eventData = {
-      summary: summary || "Sin título (Pago TIC)",
-      description: description || "Evento gestionado por Pago TIC Agent Core",
+      summary: summary || "Sin título (MarTwin)",
+      description: description || "Evento gestionado por MarTwin Agent Core",
       start: formatToGoogleDate(start),
       end: formatToGoogleDate(end || start),
     };

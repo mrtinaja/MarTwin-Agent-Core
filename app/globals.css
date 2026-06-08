@@ -1,4 +1,4 @@
-﻿@tailwind base;
+@tailwind base;
 @tailwind components;
 @tailwind utilities;
 
@@ -11,7 +11,7 @@
 }
 
 :root {
-  /* Paleta corporativa Pago TIC */
+  /* Paleta corporativa MarTwin */
   --background: #f5f1fb;      /* Fondo lavanda claro, menos luminoso que blanco puro */
   --foreground: #1e1248;      /* Azul Profundo (Confianza y Autoridad) */
   --accent-magenta: #e50051;  /* Magenta (EnergÃ­a y AcciÃ³n) */
@@ -73,7 +73,7 @@ body {
 }
 
 @layer components {
-  /* Boton principal con el magenta Pago TIC */
+  /* Boton principal con el magenta MarTwin */
   .btn-primary {
     background-color: var(--accent-magenta);
     color: white;

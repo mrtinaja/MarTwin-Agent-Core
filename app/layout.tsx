@@ -16,7 +16,7 @@ export default function RootLayout({
             __html: `
               try {
                 localStorage.removeItem('martwin-theme');
-                document.documentElement.classList.toggle('dark', localStorage.getItem('pagotic-theme') === 'dark');
+                document.documentElement.classList.toggle('dark', localStorage.getItem('martwin-theme') === 'dark');
               } catch (_) {}
             `,
           }}

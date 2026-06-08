@@ -20,7 +20,7 @@ export default function Sidebar() {
 
   useEffect(() => {
     localStorage.removeItem('martwin-theme');
-    const shouldUseDark = localStorage.getItem('pagotic-theme') === 'dark';
+    const shouldUseDark = localStorage.getItem('martwin-theme') === 'dark';
 
     setIsDarkMode(shouldUseDark);
     document.documentElement.classList.toggle('dark', shouldUseDark);
@@ -30,7 +30,7 @@ export default function Sidebar() {
     setIsDarkMode((currentMode) => {
       const nextMode = !currentMode;
       document.documentElement.classList.toggle('dark', nextMode);
-      localStorage.setItem('pagotic-theme', nextMode ? 'dark' : 'light');
+      localStorage.setItem('martwin-theme', nextMode ? 'dark' : 'light');
       return nextMode;
     });
   };
@@ -50,43 +50,58 @@ export default function Sidebar() {
     <aside className="w-64 min-w-[256px] h-screen p-6 flex flex-col bg-[#fbf9ff] dark:bg-[#0f0a24] border-r border-[#1e1248]/10 dark:border-white/10 z-50 overflow-hidden font-sans shadow-[4px_0_24px_rgba(30,18,72,0.05)] dark:shadow-[4px_0_28px_rgba(0,0,0,0.35)] transition-colors duration-300">
 
       {/* BRANDING */}
-      <div className="flex flex-col items-center justify-center mb-8 mt-2 px-4">
+      <div className="mb-8 mt-1 flex flex-col items-center justify-center px-2">
+        <div className="relative flex w-full items-center gap-3 rounded-2xl border border-[#1e1248]/10 bg-white/70 p-3 shadow-sm shadow-[#1e1248]/5 dark:border-white/10 dark:bg-white/5">
+          <div className="relative h-12 w-12 shrink-0 rounded-2xl bg-[#1e1248] shadow-lg shadow-[#1e1248]/20 dark:bg-white">
+            <div className="absolute inset-1 rounded-[14px] border border-[#e50051]/35" />
+            <svg
+              viewBox="0 0 64 64"
+              className="h-full w-full"
+              role="img"
+              aria-label="MarTwin"
+            >
+              <path
+                d="M15 43V20l11 14 11-14v23"
+                fill="none"
+                stroke="#ffffff"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="6"
+                className="dark:stroke-[#1e1248]"
+              />
+              <path
+                d="M39 20h12M45 20v24"
+                fill="none"
+                stroke="#e50051"
+                strokeLinecap="round"
+                strokeWidth="6"
+              />
+              <path
+                d="M10 48c12 6 33 6 45-7"
+                fill="none"
+                stroke="#e50051"
+                strokeLinecap="round"
+                strokeWidth="3"
+              />
+            </svg>
+          </div>
 
-        <div className="relative w-full h-14 flex items-center justify-center">
-          <svg viewBox="0 0 360 95" className="w-full h-full object-contain" role="img" aria-label="Pago TIC">
-            <text
-              x="0" y="61"
-              fontFamily="Raleway, system-ui, sans-serif"
-              fontWeight="200"
-              fontSize="66"
-              letterSpacing="-2.5"
-              className="fill-[#1e1248] dark:fill-white"
-            >
-              Pago
-            </text>
-            <text
-              x="207" y="61"
-              fontFamily="Raleway, system-ui, sans-serif"
-              fontWeight="400"
-              fontSize="66"
-              letterSpacing="-1"
-              fill="#1e1248"
-              className="dark:fill-white"
-            >
-              TIC
-            </text>
-            <path
-              d="M205 73 V83 Q205 88 210 88 H346 Q351 88 351 83 V73"
-              fill="none"
-              stroke="#e50051"
-              strokeWidth="9"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-baseline">
+              <span className="text-[23px] leading-none tracking-normal text-[#1e1248] dark:text-white">
+                Mar
+              </span>
+              <span className="text-[23px] font-normal leading-none tracking-normal text-[#e50051]">
+                Twin
+              </span>
+            </div>
+            <p className="mt-1 text-[8px] font-normal uppercase tracking-[0.18em] text-[#1e1248]/45 dark:text-white/45">
+              Intelligence Core
+            </p>
+          </div>
         </div>
 
-        <div className="mt-4 flex items-center gap-2 px-3 py-1 bg-[#1e1248]/5 dark:bg-white/5 rounded-full border border-[#1e1248]/5 dark:border-white/10">
+        <div className="mt-3 flex items-center gap-2 px-3 py-1 bg-[#1e1248]/5 dark:bg-white/5 rounded-full border border-[#1e1248]/5 dark:border-white/10">
           <div className="w-1.5 h-1.5 bg-[#e50051] rounded-full animate-pulse shadow-[0_0_8px_rgba(229,0,81,0.4)]"></div>
           <span className="text-[9px] tracking-widest text-[#1e1248]/60 dark:text-white/60 uppercase font-normal">Connected</span>
         </div>
@@ -201,7 +216,7 @@ export default function Sidebar() {
               System Core v6.0
             </span>
             <span className="text-[6px] font-normal text-gray-400 dark:text-white/35 uppercase mt-1">
-              Pago TIC Industrial Intelligence
+              MarTwin Industrial Intelligence
             </span>
         </div>
       </div>

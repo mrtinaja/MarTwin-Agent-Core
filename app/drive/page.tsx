@@ -156,7 +156,7 @@ export default function DrivePage() {
       <footer className="mt-20 pt-10 border-t border-gray-100 flex justify-center opacity-30">
         <div className="flex items-center gap-3">
           <ShieldCheck size={14} />
-          <span className="text-[9px] font-normal uppercase tracking-[0.4em]">Almacenamiento Seguro Pago TIC // Cifrado AES-256</span>
+          <span className="text-[9px] font-normal uppercase tracking-[0.4em]">Almacenamiento Seguro MarTwin // Cifrado AES-256</span>
         </div>
       </footer>
 

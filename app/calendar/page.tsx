@@ -192,7 +192,7 @@ export default function CalendarPage() {
             <div className="flex items-center gap-2"><ShieldCheck size={14} className="text-[#1e1248]"/> <span>Access: <span className="text-[#1e1248]">Encrypted</span></span></div>
           </div>
           <div className="text-[10px] font-normal text-[#e50051] bg-white px-4 py-1.5 rounded-full shadow-sm">
-            Pago TIC Intelligence v6.0
+            MarTwin Intelligence v6.0
           </div>
         </footer>
       </div>

@@ -75,7 +75,7 @@ export default function Dashboard() {
       <header className="mb-8 flex justify-between items-center bg-[#fbf9ff] dark:bg-[#0f0a24] p-6 rounded-2xl shadow-sm border border-[#1e1248]/10 dark:border-white/10">
         <div>
           <h1 className="text-2xl font-normal tracking-tight text-[#1e1248] dark:text-white flex items-center gap-2">
-            Pago TIC <span className="text-[#e50051]">Systems</span>
+            MarTwin <span className="text-[#e50051]">Systems</span>
           </h1>
           <div className="flex items-center gap-3 mt-1">
             <div className={`h-2 w-2 rounded-full ${activeTimer ? 'bg-[#e50051] animate-ping' : 'bg-gray-300'}`} />
@@ -164,26 +164,27 @@ export default function Dashboard() {
               <span className="text-[10px] ml-2 text-gray-400">MBPS</span>
             </div>
           </div>
-          <div className="min-h-0 flex-1">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={netData}>
-                <defs>
-                  <linearGradient id="colorMagenta" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#e50051" stopOpacity={0.1}/>
-                    <stop offset="95%" stopColor="#e50051" stopOpacity={0}/>
-                  </linearGradient>
-                </defs>
-                <Area 
-                  type="monotone" 
-                  dataKey="down" 
-                  stroke="#e50051" 
-                  strokeWidth={3} 
-                  fill="url(#colorMagenta)" 
-                  isAnimationActive={false} 
-                />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
+          <div className="min-h-[160px] h-full w-full">
+          <ResponsiveContainer width="100%" height={180} minWidth={1} minHeight={1}>
+            <AreaChart data={netData}>
+              <defs>
+                <linearGradient id="colorMagenta" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#e50051" stopOpacity={0.1} />
+                  <stop offset="95%" stopColor="#e50051" stopOpacity={0} />
+                </linearGradient>
+              </defs>
+
+              <Area
+                type="monotone"
+                dataKey="down"
+                stroke="#e50051"
+                strokeWidth={3}
+                fill="url(#colorMagenta)"
+                isAnimationActive={false}
+              />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
         </div>
 
         {/* LOG / HISTORY SECTION */}

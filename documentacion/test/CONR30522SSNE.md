@@ -1,5 +1,5 @@
 export default {
-  name: "CONR_30522SSNE",
+  name: "CONR30522SSNE",
   effectiveDate: "2025-01-01",
   description: "Test emitidas solamente",
 

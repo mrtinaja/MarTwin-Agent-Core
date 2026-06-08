@@ -46,6 +46,8 @@ type ChatMessage = {
   role: ChatRole;
   content: string;
   attachments?: UploadedFile[];
+  docsSquadEnabled?: boolean;
+  docsSquadSource?: string;
 };
 
 type CodeBlockProps = {
@@ -67,7 +69,7 @@ const initialMessages: ChatMessage[] = [
     id: "init",
     role: "assistant",
     content:
-      "Hola, soy el asistente tecnico de **Pago TIC**. Puedo ayudarte con desarrollo, analisis de codigo, documentacion, QA, debugging, arquitectura y automatizacion.",
+      "Hola, soy el asistente tecnico de **MarTwin**. Puedo ayudarte con desarrollo, analisis de codigo, documentacion, QA, debugging, arquitectura y automatizacion.",
   },
 ];
 
@@ -143,6 +145,19 @@ function extractCodeBlock(content: string, language: string) {
 
 function escapeRegExp(value: string) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function escapeHtml(value: string) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+function escapeForInlineScript(value: string) {
+  return JSON.stringify(value).replace(/</g, "\\u003c");
 }
 
 function getAssetFileNameVariants(fileName: string) {
@@ -382,6 +397,253 @@ function createArtifactFileName(extension: string) {
   return `martwin-artifact-${stamp}.${extension}`;
 }
 
+function normalizeReportDisplayTitle(value: string) {
+  const cleanValue = String(value || "")
+    .replace(/[-_]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (!cleanValue) {
+    return "Informe Docs Squad";
+  }
+
+  return cleanValue.charAt(0).toUpperCase() + cleanValue.slice(1);
+}
+
+function extractExplicitTitle(value: string) {
+  const rawValue = String(value || "").replace(/\s+/g, " ").trim();
+
+  const explicitTitleMatch = rawValue.match(/\bt[ií]tulo\s+(.+)$/i);
+
+  if (!explicitTitleMatch?.[1]) {
+    return "";
+  }
+
+  return explicitTitleMatch[1]
+    .replace(
+      /\s+(necesito|quiero|debo|tengo que|para|descarga|descargar|bajar|drive|template|plantilla|word|docx)\b.*$/i,
+      ""
+    )
+    .replace(/\s+\d{4}-\d{2}-\d{2}\s+\d{3,4}$/i, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function cleanReportTitleCandidate(value: string) {
+  const explicitTitle = extractExplicitTitle(value);
+
+  let nextValue =
+    explicitTitle ||
+    String(value || "")
+      .replace(/\r\n/g, "\n")
+      .split("\n")[0]
+      .trim();
+
+  nextValue = nextValue
+    .replace(/[¿?¡!]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  nextValue = nextValue.replace(
+    /^(informe\s+)?(ahora\s+)?(usando\s+)?(el\s+)?(t[ií]tulo\s+)?/i,
+    ""
+  );
+
+  nextValue = nextValue.replace(
+    /^(por favor\s+)?(me\s+)?(podrias\s+|podrías\s+)?(generame|generá|genera|generar|dame|dá|quiero|necesito|armame|arma|armar|haceme|hace|hacer|creame|crea|crear|preparame|prepara|preparar|pasame|pasar|exportame|exportar|descargame|descarga|descargar|bajame|bajalo|bajar)\s+/i,
+    ""
+  );
+
+  nextValue = nextValue.replace(/^(un|una|el|la|los|las)\s+/i, "");
+
+  nextValue = nextValue.replace(
+    /\b(apara|para)\s+(descargar|descarga|bajar|exportar|google docs|docs|word|docx|drive)\b.*$/i,
+    ""
+  );
+
+  nextValue = nextValue.replace(
+    /\b(con|usando|en)\s+(el\s+)?(template|plantilla)\s+(corporativo\s+)?(squad|martwin)?\b.*$/i,
+    ""
+  );
+
+  nextValue = nextValue
+    .replace(/\bde\s+(la|el|los|las|un|una)\s+/gi, "de ")
+    .replace(/\bde\s+como\s+se\s+/i, "de cómo se ")
+    .replace(/\bcomo\s+se\s+/i, "cómo se ")
+    .replace(/\s+\d{4}-\d{2}-\d{2}\s+\d{3,4}$/i, "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (!nextValue) {
+    return "Informe Docs Squad";
+  }
+
+  if (
+    !/^informe\b/i.test(nextValue) &&
+    /arquitectura|infraestructura|configuracion|configuración|emailpdf|documentacion|documentación|sistema|api|reporte|analisis|análisis|html|migracion|migración|zurich/i.test(
+      nextValue
+    )
+  ) {
+    return normalizeReportDisplayTitle(`Informe de ${nextValue}`);
+  }
+
+  return normalizeReportDisplayTitle(nextValue);
+}
+
+function getContentFallbackTitle(content: string) {
+  const markdownTitle = content.match(/^#\s+(.+)$/m)?.[1]?.trim();
+
+  if (markdownTitle) {
+    return markdownTitle;
+  }
+
+  return (
+    content
+      .replace(/```[\s\S]*?```/g, "")
+      .split("\n")
+      .map((line) => line.trim())
+      .find((line) => {
+        return (
+          line &&
+          !line.startsWith("CONTENT_END") &&
+          !line.startsWith("|") &&
+          !line.startsWith("---")
+        );
+      }) || "Informe Docs Squad"
+  );
+}
+
+function createDocsSquadTitle(content: string, source?: string) {
+  const rawTitle = source?.trim()
+    ? cleanReportTitleCandidate(source)
+    : cleanReportTitleCandidate(getContentFallbackTitle(content));
+
+  return normalizeReportDisplayTitle(rawTitle || "Informe Docs Squad");
+}
+
+function createDocsSquadFileNameFromTitle(title: string) {
+  const safeTitle = normalizeReportDisplayTitle(title)
+    .replace(/[<>:"/\\|?*\x00-\x1F]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  const stamp = new Date()
+    .toISOString()
+    .slice(0, 16)
+    .replace("T", " ")
+    .replace(":", "");
+
+  return `${safeTitle || "Informe Docs Squad"} ${stamp}.docx`;
+}
+
+function createDocsSquadFileName(content: string, source?: string) {
+  const rawTitle = createDocsSquadTitle(content, source);
+
+  return createDocsSquadFileNameFromTitle(rawTitle);
+}
+
+function stripMarkdownForDocx(value: string) {
+  return value
+    .replace(/```[\s\S]*?```/g, (block) =>
+      block.replace(/^```[a-z0-9-]*\n?/i, "").replace(/```$/g, "")
+    )
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, "")
+    .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
+    .replace(/^#{1,6}\s+/gm, "")
+    .replace(/^\s*[-*+]\s+/gm, "- ")
+    .replace(/\*\*([^*]+)\*\*/g, "$1")
+    .replace(/__([^_]+)__/g, "$1")
+    .replace(/`([^`]+)`/g, "$1")
+    .trim();
+}
+
+function getMarkdownHeadings(content: string) {
+  return content
+    .split("\n")
+    .map((line) => line.trim())
+    .map((line) => line.match(/^#{1,3}\s+(.+)$/)?.[1]?.trim())
+    .filter((heading): heading is string => Boolean(heading))
+    .slice(0, 8);
+}
+
+function getFirstUsefulParagraph(content: string) {
+  return (
+    content
+      .replace(/```[\s\S]*?```/g, "")
+      .split("\n")
+      .map((line) => line.trim())
+      .find((line) => {
+        return (
+          line &&
+          !line.startsWith("#") &&
+          !line.startsWith("|") &&
+          !line.startsWith("---") &&
+          !line.startsWith("CONTENT_END") &&
+          line.length > 40
+        );
+      }) || ""
+  );
+}
+
+function buildDocsSquadMetadata(
+  content: string,
+  source?: string,
+  customTitle?: string
+) {
+  const title = customTitle
+    ? normalizeReportDisplayTitle(customTitle)
+    : createDocsSquadTitle(content, source);
+
+  const headings = getMarkdownHeadings(content);
+  const firstParagraph = getFirstUsefulParagraph(content);
+  const generatedAt = new Date().toLocaleString("es-AR", {
+    dateStyle: "short",
+    timeStyle: "short",
+  });
+
+  const topic = title.replace(/^informe\s+de\s+/i, "").trim();
+
+  const description = firstParagraph
+    ? firstParagraph.slice(0, 700)
+    : `Informe técnico generado sobre ${topic}.`;
+
+  const references = [
+    `Tipo: Informe técnico`,
+    `Tema: ${topic}`,
+    `Origen: MarTwin AI Assistant`,
+    `Fecha de generación: ${generatedAt}`,
+    headings.length ? `Secciones detectadas: ${headings.join(" | ")}` : "",
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  const changes = headings.length
+    ? `Se generó un documento estructurado sobre ${topic}. El contenido incluye las secciones principales: ${headings.join(", ")}.`
+    : `Se generó un documento técnico sobre ${topic}, organizado a partir de la respuesta producida por MarTwin AI Assistant.`;
+
+  return {
+    title,
+    description,
+    references,
+    changes,
+  };
+}
+
+function normalizeSearchText(value: string) {
+  return value
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
+function shouldEnableDocsSquad(input: string) {
+  const normalizedInput = normalizeSearchText(input);
+
+  const docsSquadKeywords = ["descarga", "bajar", "drive", "template"];
+
+  return docsSquadKeywords.some((keyword) => normalizedInput.includes(keyword));
+}
+
 function downloadBlob(blob: Blob, fileName: string) {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
@@ -456,7 +718,13 @@ function buildXlsHtml(previewHtml: string) {
     .map(
       (row) =>
         `<tr>${row
-          .map((cell) => `<td>${cell.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")}</td>`)
+          .map(
+            (cell) =>
+              `<td>${cell
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")}</td>`
+          )
           .join("")}</tr>`
     )
     .join("");
@@ -616,7 +884,7 @@ const HtmlPreview = ({
 
       downloadBlob(blob, createArtifactFileName(extension));
     } catch (error) {
-      console.error("PAGOTIC_EXPORT_FAILURE:", error);
+      console.error("MARTWIN_EXPORT_FAILURE:", error);
       window.alert(
         "No pude exportar la imagen desde el navegador. Proba abrir la vista previa y usar imprimir/guardar."
       );
@@ -691,91 +959,99 @@ const HtmlPreview = ({
         </div>
 
         <div className="flex flex-wrap justify-end gap-2">
-          <button
-            type="button"
-            onClick={openPreview}
-            className="inline-flex items-center gap-1.5 rounded-xl bg-[#e50051] px-3 py-2 text-[10px] uppercase tracking-widest text-white transition-all hover:opacity-90 active:scale-95"
-          >
-            <FileImage size={13} />
-            Abrir
-          </button>
+          <div className="flex items-center gap-1 rounded-2xl border border-white/10 bg-white/5 p-1">
+            <button
+              type="button"
+              onClick={openPreview}
+              className="inline-flex h-8 items-center gap-1.5 rounded-xl bg-[#e50051] px-3 text-[10px] uppercase tracking-widest text-white transition-all hover:opacity-90 active:scale-95"
+            >
+              <FileImage size={13} />
+              Abrir
+            </button>
+          </div>
 
-          <button
-            type="button"
-            onClick={exportHtml}
-            className="inline-flex items-center gap-1.5 rounded-xl bg-white/10 px-3 py-2 text-[10px] uppercase tracking-widest text-white transition-all hover:bg-white/20 active:scale-95"
-          >
-            <Download size={13} />
-            HTML
-          </button>
+          <div className="flex items-center gap-1 rounded-2xl border border-white/10 bg-white/5 p-1">
+            <button
+              type="button"
+              onClick={exportHtml}
+              className="inline-flex h-8 items-center gap-1.5 rounded-xl px-3 text-[10px] uppercase tracking-widest text-white transition-all hover:bg-white/15 active:scale-95"
+            >
+              <Download size={13} />
+              HTML
+            </button>
 
-          <button
-            type="button"
-            onClick={exportSvg}
-            className="rounded-xl bg-white/10 px-3 py-2 text-[10px] uppercase tracking-widest text-white transition-all hover:bg-white/20 active:scale-95"
-          >
-            SVG
-          </button>
+            <button
+              type="button"
+              onClick={exportSvg}
+              className="h-8 rounded-xl px-3 text-[10px] uppercase tracking-widest text-white transition-all hover:bg-white/15 active:scale-95"
+            >
+              SVG
+            </button>
 
-          <button
-            type="button"
-            onClick={() => exportRaster("png", "image/png")}
-            disabled={Boolean(exportingFormat)}
-            className="rounded-xl bg-white/10 px-3 py-2 text-[10px] uppercase tracking-widest text-white transition-all hover:bg-white/20 active:scale-95 disabled:opacity-50"
-          >
-            {exportingFormat === "png" ? "..." : "PNG"}
-          </button>
+            <button
+              type="button"
+              onClick={() => exportRaster("png", "image/png")}
+              disabled={Boolean(exportingFormat)}
+              className="h-8 rounded-xl px-3 text-[10px] uppercase tracking-widest text-white transition-all hover:bg-white/15 active:scale-95 disabled:opacity-50"
+            >
+              {exportingFormat === "png" ? "..." : "PNG"}
+            </button>
 
-          <button
-            type="button"
-            onClick={() => exportRaster("jpg", "image/jpeg")}
-            disabled={Boolean(exportingFormat)}
-            className="rounded-xl bg-white/10 px-3 py-2 text-[10px] uppercase tracking-widest text-white transition-all hover:bg-white/20 active:scale-95 disabled:opacity-50"
-          >
-            {exportingFormat === "jpg" ? "..." : "JPG"}
-          </button>
+            <button
+              type="button"
+              onClick={() => exportRaster("jpg", "image/jpeg")}
+              disabled={Boolean(exportingFormat)}
+              className="h-8 rounded-xl px-3 text-[10px] uppercase tracking-widest text-white transition-all hover:bg-white/15 active:scale-95 disabled:opacity-50"
+            >
+              {exportingFormat === "jpg" ? "..." : "JPG"}
+            </button>
 
-          <button
-            type="button"
-            onClick={() => exportRaster("gif", "image/gif")}
-            disabled={Boolean(exportingFormat)}
-            className="rounded-xl bg-white/10 px-3 py-2 text-[10px] uppercase tracking-widest text-white transition-all hover:bg-white/20 active:scale-95 disabled:opacity-50"
-          >
-            {exportingFormat === "gif" ? "..." : "GIF"}
-          </button>
+            <button
+              type="button"
+              onClick={() => exportRaster("gif", "image/gif")}
+              disabled={Boolean(exportingFormat)}
+              className="h-8 rounded-xl px-3 text-[10px] uppercase tracking-widest text-white transition-all hover:bg-white/15 active:scale-95 disabled:opacity-50"
+            >
+              {exportingFormat === "gif" ? "..." : "GIF"}
+            </button>
+          </div>
 
-          <button
-            type="button"
-            onClick={exportPdf}
-            className="inline-flex items-center gap-1.5 rounded-xl bg-white/10 px-3 py-2 text-[10px] uppercase tracking-widest text-white transition-all hover:bg-white/20 active:scale-95"
-          >
-            <Printer size={13} />
-            PDF
-          </button>
+          <div className="flex items-center gap-1 rounded-2xl border border-white/10 bg-white/5 p-1">
+            <button
+              type="button"
+              onClick={exportPdf}
+              className="inline-flex h-8 items-center gap-1.5 rounded-xl px-3 text-[10px] uppercase tracking-widest text-white transition-all hover:bg-white/15 active:scale-95"
+            >
+              <Printer size={13} />
+              PDF
+            </button>
 
-          <button
-            type="button"
-            onClick={exportWord}
-            className="rounded-xl bg-white/10 px-3 py-2 text-[10px] uppercase tracking-widest text-white transition-all hover:bg-white/20 active:scale-95"
-          >
-            Word
-          </button>
+            <button
+              type="button"
+              onClick={exportWord}
+              className="h-8 rounded-xl px-3 text-[10px] uppercase tracking-widest text-white transition-all hover:bg-white/15 active:scale-95"
+            >
+              Word
+            </button>
+          </div>
 
-          <button
-            type="button"
-            onClick={exportCsv}
-            className="rounded-xl bg-white/10 px-3 py-2 text-[10px] uppercase tracking-widest text-white transition-all hover:bg-white/20 active:scale-95"
-          >
-            CSV
-          </button>
+          <div className="flex items-center gap-1 rounded-2xl border border-white/10 bg-white/5 p-1">
+            <button
+              type="button"
+              onClick={exportCsv}
+              className="h-8 rounded-xl px-3 text-[10px] uppercase tracking-widest text-white transition-all hover:bg-white/15 active:scale-95"
+            >
+              CSV
+            </button>
 
-          <button
-            type="button"
-            onClick={exportXls}
-            className="rounded-xl bg-white/10 px-3 py-2 text-[10px] uppercase tracking-widest text-white transition-all hover:bg-white/20 active:scale-95"
-          >
-            XLS
-          </button>
+            <button
+              type="button"
+              onClick={exportXls}
+              className="h-8 rounded-xl px-3 text-[10px] uppercase tracking-widest text-white transition-all hover:bg-white/15 active:scale-95"
+            >
+              XLS
+            </button>
+          </div>
         </div>
       </div>
 
@@ -807,10 +1083,16 @@ export default function ChatPage() {
   const [messages, setMessages] = useState<ChatMessage[]>(initialMessages);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [docsSquadGeneratingId, setDocsSquadGeneratingId] = useState<
+    string | null
+  >(null);
 
   const [copiedBlockId, setCopiedBlockId] = useState<string | null>(null);
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const [fileTaskMode, setFileTaskMode] = useState<FileTaskMode>("analysis");
+  const [docsTitleModalMessage, setDocsTitleModalMessage] =
+    useState<ChatMessage | null>(null);
+  const [docsTitleInput, setDocsTitleInput] = useState("");
 
   useEffect(() => {
     setMounted(true);
@@ -941,7 +1223,7 @@ Objetivo:
       });
 
       if (!validFiles.length) {
-        console.warn("[PagoTIC_LoadFiles_Debug] No valid files selected");
+        console.warn("[MarTwin_LoadFiles_Debug] No valid files selected");
         return;
       }
 
@@ -953,7 +1235,7 @@ Objetivo:
         setInput(getDefaultFilePrompt(fileTaskMode));
       }
 
-      console.log("[PagoTIC_LoadFiles_Debug]", {
+      console.log("[MarTwin_LoadFiles_Debug]", {
         files: nextFiles.length,
         names: nextFiles.map((file) => file.name),
         types: nextFiles.map((file) => file.type),
@@ -980,7 +1262,7 @@ Objetivo:
       });
 
       if (!validFiles.length) {
-        console.log("[PagoTIC_Paste_Debug] No valid file found in clipboard", {
+        console.log("[MarTwin_Paste_Debug] No valid file found in clipboard", {
           files: filesFromClipboard.length,
           items: event.clipboardData.items.length,
           itemTypes: Array.from(event.clipboardData.items).map(
@@ -993,7 +1275,7 @@ Objetivo:
 
       event.preventDefault();
 
-      console.log("[PagoTIC_Paste_Debug] Valid file found", {
+      console.log("[MarTwin_Paste_Debug] Valid file found", {
         files: validFiles.length,
         names: validFiles.map((file) => file.name),
         types: validFiles.map((file) => file.type),
@@ -1040,12 +1322,354 @@ Objetivo:
     setIsLoading(false);
   }, []);
 
+  const handleDocsSquadDownload = useCallback(
+    async (message: ChatMessage, selectedTitle: string) => {
+      const rawContent = message.content.trim();
+      const plainContent = stripMarkdownForDocx(message.content);
+
+      if (!rawContent) {
+        window.alert("Todavia no hay contenido suficiente para generar el documento.");
+        return;
+      }
+
+      const reportTitle = normalizeReportDisplayTitle(selectedTitle);
+
+      if (!reportTitle.trim()) {
+        window.alert("El título del informe no puede estar vacío.");
+        return;
+      }
+
+      const fileName = createDocsSquadFileNameFromTitle(reportTitle);
+      const reportName = fileName.replace(/\.docx$/i, "");
+
+      const docsMetadata = buildDocsSquadMetadata(
+        message.content,
+        message.docsSquadSource,
+        reportTitle
+      );
+
+      const driveWindow = window.open("", "_blank");
+
+      if (driveWindow) {
+        const safeReportTitle = escapeHtml(reportTitle);
+        const safeFileName = escapeHtml(fileName);
+
+        driveWindow.document.write(`
+          <!DOCTYPE html>
+          <html lang="es">
+            <head>
+              <meta charset="utf-8" />
+              <title>Generando documento...</title>
+              <style>
+                body {
+                  margin: 0;
+                  min-height: 100vh;
+                  display: flex;
+                  align-items: center;
+                  justify-content: center;
+                  background: #0f0a24;
+                  color: #46f2c8;
+                  font-family: Arial, sans-serif;
+                }
+
+                .box {
+                  text-align: center;
+                  max-width: 680px;
+                  padding: 32px;
+                  border: 1px solid rgba(70, 242, 200, 0.45);
+                  border-radius: 24px;
+                  background: rgba(30, 18, 72, 0.7);
+                }
+
+                h1 {
+                  margin: 0 0 12px;
+                  font-size: 20px;
+                  font-weight: 400;
+                }
+
+                p {
+                  margin: 0 0 10px;
+                  color: #ffffff;
+                  opacity: 0.75;
+                  font-size: 14px;
+                }
+
+                strong {
+                  display: block;
+                  margin-top: 16px;
+                  color: #ffffff;
+                  font-size: 18px;
+                  font-weight: 700;
+                  line-height: 1.4;
+                }
+
+                code {
+                  display: block;
+                  margin-top: 14px;
+                  color: #46f2c8;
+                  word-break: break-word;
+                  font-size: 12px;
+                }
+              </style>
+            </head>
+            <body>
+              <div class="box">
+                <h1>Generando documento...</h1>
+                <p>MarTwin está creando el archivo en Google Drive.</p>
+                <strong>${safeReportTitle}</strong>
+                <code>${safeFileName}</code>
+              </div>
+            </body>
+          </html>
+        `);
+        driveWindow.document.close();
+      }
+
+      setDocsSquadGeneratingId(message.id);
+
+      try {
+        const response = await fetch("/api/google/docs", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            nombre_reporte: reportName,
+            titulo_reporte: reportTitle,
+            consulta_original: message.docsSquadSource || reportTitle,
+            consulta_actual_y_cambios: docsMetadata.changes,
+            descripcion_funcional:
+              docsMetadata.description || plainContent.slice(0, 3500),
+            detalles_funcionales: rawContent,
+            campo_tipo_lista: docsMetadata.references,
+          }),
+        });
+
+        const result = (await response.json().catch(() => null)) as {
+          success?: boolean;
+          url?: string;
+          folderUrl?: string;
+          error?: string;
+          details?: unknown;
+        } | null;
+
+        console.log("GOOGLE_DOCS_RESULT:", result);
+
+        if (!response.ok || !result?.success || (!result.url && !result.folderUrl)) {
+          console.error("GOOGLE_DOCS_RESPONSE_FAILURE:", result);
+
+          throw new Error(
+            result?.error || "No se pudo generar el documento en Google Docs."
+          );
+        }
+
+        const openTargetUrl = result.url || result.folderUrl;
+
+        if (!openTargetUrl) {
+          throw new Error("Google no devolvió URL para abrir.");
+        }
+
+        if (driveWindow && !driveWindow.closed) {
+          const safeOpenTargetUrl = escapeHtml(openTargetUrl);
+          const scriptOpenTargetUrl = escapeForInlineScript(openTargetUrl);
+          const safeReportTitle = escapeHtml(reportTitle);
+          const safeFileName = escapeHtml(fileName);
+
+          driveWindow.document.open();
+          driveWindow.document.write(`
+            <!DOCTYPE html>
+            <html lang="es">
+              <head>
+                <meta charset="utf-8" />
+                <meta http-equiv="refresh" content="1;url=${safeOpenTargetUrl}" />
+                <title>Documento creado</title>
+                <style>
+                  body {
+                    margin: 0;
+                    min-height: 100vh;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    background: #0f0a24;
+                    color: #46f2c8;
+                    font-family: Arial, sans-serif;
+                  }
+
+                  .box {
+                    text-align: center;
+                    max-width: 760px;
+                    padding: 32px;
+                    border: 1px solid rgba(70, 242, 200, 0.45);
+                    border-radius: 24px;
+                    background: rgba(30, 18, 72, 0.7);
+                  }
+
+                  h1 {
+                    margin: 0 0 12px;
+                    font-size: 20px;
+                    font-weight: 400;
+                  }
+
+                  p {
+                    margin: 0 0 10px;
+                    color: #ffffff;
+                    opacity: 0.75;
+                    font-size: 14px;
+                  }
+
+                  strong {
+                    display: block;
+                    margin-top: 16px;
+                    color: #ffffff;
+                    font-size: 18px;
+                    font-weight: 700;
+                    line-height: 1.4;
+                  }
+
+                  code {
+                    display: block;
+                    margin-top: 14px;
+                    color: #46f2c8;
+                    word-break: break-word;
+                    font-size: 12px;
+                  }
+
+                  a {
+                    display: inline-flex;
+                    margin-top: 22px;
+                    border-radius: 16px;
+                    background: #46f2c8;
+                    color: #000000;
+                    padding: 12px 18px;
+                    text-decoration: none;
+                    font-size: 11px;
+                    text-transform: uppercase;
+                    letter-spacing: 0.18em;
+                  }
+                </style>
+              </head>
+
+              <body>
+                <div class="box">
+                  <h1>Documento creado</h1>
+                  <p>Redirigiendo a Google Docs...</p>
+                  <strong>${safeReportTitle}</strong>
+                  <code>${safeFileName}</code>
+                  <a href="${safeOpenTargetUrl}" target="_self" rel="noreferrer">
+                    Abrir documento
+                  </a>
+                </div>
+
+                <script>
+                  window.setTimeout(function () {
+                    window.location.href = ${scriptOpenTargetUrl};
+                  }, 300);
+                </script>
+              </body>
+            </html>
+          `);
+          driveWindow.document.close();
+
+          window.setTimeout(() => {
+            try {
+              driveWindow.location.href = openTargetUrl;
+            } catch (navigationError) {
+              console.error(
+                "GOOGLE_DOCS_WINDOW_NAVIGATION_FAILURE:",
+                navigationError
+              );
+            }
+          }, 600);
+        } else {
+          const fallbackWindow = window.open(
+            openTargetUrl,
+            "_blank",
+            "noopener,noreferrer"
+          );
+
+          if (!fallbackWindow) {
+            window.alert(
+              `Documento creado, pero el navegador bloqueó la apertura automática.\n\nAbrilo manualmente desde:\n${openTargetUrl}`
+            );
+          }
+        }
+      } catch (error: unknown) {
+        console.error("GOOGLE_DOCS_DOWNLOAD_FAILURE:", error);
+
+        if (driveWindow && !driveWindow.closed) {
+          driveWindow.document.open();
+          driveWindow.document.write(`
+            <!DOCTYPE html>
+            <html lang="es">
+              <head>
+                <meta charset="utf-8" />
+                <title>Error al generar documento</title>
+                <style>
+                  body {
+                    margin: 0;
+                    min-height: 100vh;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    background: #0f0a24;
+                    color: white;
+                    font-family: Arial, sans-serif;
+                  }
+
+                  .box {
+                    max-width: 680px;
+                    padding: 32px;
+                    border: 1px solid rgba(229, 0, 81, 0.55);
+                    border-radius: 24px;
+                    background: rgba(30, 18, 72, 0.7);
+                    text-align: center;
+                  }
+
+                  h1 {
+                    color: #e50051;
+                    font-size: 20px;
+                    font-weight: 700;
+                  }
+
+                  p {
+                    color: #ffffff;
+                    opacity: 0.8;
+                    font-size: 14px;
+                    line-height: 1.5;
+                  }
+                </style>
+              </head>
+              <body>
+                <div class="box">
+                  <h1>No se pudo abrir el documento</h1>
+                  <p>Revisá la consola de Next para ver el detalle del error.</p>
+                </div>
+              </body>
+            </html>
+          `);
+          driveWindow.document.close();
+        }
+
+        const messageText =
+          error instanceof Error
+            ? error.message
+            : "No pude crear o abrir el documento en Google Docs.";
+
+        window.alert(messageText);
+      } finally {
+        setDocsSquadGeneratingId(null);
+      }
+    },
+    []
+  );
+
   const handleChatSubmit = useCallback(
     async (event: React.FormEvent<HTMLFormElement>) => {
       event.preventDefault();
 
       const trimmedInput = input.trim();
       const currentUploadedFiles = [...uploadedFiles];
+      const shouldShowDocsSquad = shouldEnableDocsSquad(trimmedInput);
       const shouldForceVisualMode =
         /\b(mock|mockup|mockea|mockear|mockeando|preview|vista previa|visualiza|visualizar|render|renderiza|renderizar)\b/i.test(
           trimmedInput
@@ -1079,6 +1703,8 @@ Objetivo:
         role: "assistant",
         content: "",
         attachments: currentUploadedFiles,
+        docsSquadEnabled: shouldShowDocsSquad,
+        docsSquadSource: trimmedInput,
       };
 
       setMessages((currentMessages) => [
@@ -1090,7 +1716,7 @@ Objetivo:
       setInput("");
       setIsLoading(true);
 
-      console.log("[PagoTIC_Submit_Debug]", {
+      console.log("[MarTwin_Submit_Debug]", {
         inputLength: userMessage.content.length,
         uploadedFiles: currentUploadedFiles.length,
         names: currentUploadedFiles.map((file) => file.name),
@@ -1185,8 +1811,9 @@ Objetivo:
                 ? {
                     ...message,
                     content:
-                      message.content.trim() ||
-                      "Consulta detenida por el usuario.",
+                      message.docsSquadEnabled && message.content.trim()
+                        ? "Consulta detenida por el usuario."
+                        : message.content,
                     attachments: currentUploadedFiles,
                   }
                 : message
@@ -1196,7 +1823,7 @@ Objetivo:
           return;
         }
 
-        console.error("PAGOTIC_FRONT_CHAT_FAILURE:", error);
+        console.error("MARTWIN_FRONT_CHAT_FAILURE:", error);
 
         setMessages((currentMessages) =>
           currentMessages.map((message) =>
@@ -1238,7 +1865,7 @@ Objetivo:
 
           <div>
             <h2 className="text-sm font-normal tracking-tight text-[#1e1248] uppercase">
-              Pago TIC{" "}
+              MarTwin{" "}
               <span className="text-[#e50051]">AI Assistant</span>
             </h2>
 
@@ -1344,10 +1971,37 @@ Objetivo:
                   </ReactMarkdown>
 
                   {message.role === "assistant" && (
-                    <HtmlPreview
-                      content={message.content}
-                      assets={message.attachments || []}
-                    />
+                    <>
+                      {message.docsSquadEnabled && message.content.trim() && (
+                        <div className="mt-5 flex justify-end">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const suggestedTitle = createDocsSquadTitle(
+                                message.content,
+                                message.docsSquadSource
+                              );
+
+                              setDocsTitleInput(suggestedTitle);
+                              setDocsTitleModalMessage(message);
+                            }}
+                            disabled={docsSquadGeneratingId === message.id}
+                            className="inline-flex h-10 items-center gap-2 rounded-xl border border-[#46f2c8]/50 bg-[#46f2c8] px-4 text-[10px] font-normal uppercase tracking-widest text-[black] shadow-lg shadow-[#46f2c8]/20 transition-all hover:bg-black active:scale-95 disabled:cursor-wait disabled:opacity-70"
+                            title="Abrir informe con template Squad en Google Docs"
+                          >
+                            <FileText size={14} />
+                            {docsSquadGeneratingId === message.id
+                              ? "Abriendo..."
+                              : "Google Docs"}
+                          </button>
+                        </div>
+                      )}
+
+                      <HtmlPreview
+                        content={message.content}
+                        assets={message.attachments || []}
+                      />
+                    </>
                   )}
                 </div>
               </div>
@@ -1519,10 +2173,10 @@ Objetivo:
               <button
                 type="button"
                 onClick={handleStopChat}
-                className="flex items-center gap-2 px-5 py-4 rounded-[2rem] font-normal text-xs uppercase tracking-widest transition-all bg-[#e50051] text-white shadow-lg shadow-[#e50051]/20 active:scale-95"
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#e50051] text-white shadow-md shadow-[#e50051]/15 transition-all hover:opacity-90 active:scale-95"
+                title="Detener respuesta"
               >
-                <X size={16} />
-                Detener
+                <X size={15} />
               </button>
             )}
 
@@ -1547,10 +2201,82 @@ Objetivo:
           </div>
 
           <p className="text-center text-[10px] text-gray-400 mt-4 font-normal uppercase tracking-[0.2em]">
-            Pago TIC IT Development Core // Secure Workspace
+            MarTwin IT Development Core // Secure Workspace
           </p>
         </form>
       </footer>
+
+      {docsTitleModalMessage && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 px-6">
+          <div className="w-full max-w-xl rounded-[2rem] border border-white/10 bg-[#1e1248] p-6 shadow-2xl">
+            <div className="mb-5">
+              <p className="text-[10px] uppercase tracking-[0.25em] text-[#46f2c8]">
+                Google Docs Squad
+              </p>
+
+              <h3 className="mt-2 text-xl font-normal text-white">
+                Título del informe
+              </h3>
+
+              <p className="mt-2 text-sm leading-relaxed text-white/60">
+                Revisá o corregí el título antes de crear el documento en Google Drive.
+              </p>
+            </div>
+
+            <input
+              autoFocus
+              value={docsTitleInput}
+              onChange={(event) => setDocsTitleInput(event.target.value)}
+              className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-4 text-sm text-white outline-none transition-all placeholder:text-white/30 focus:border-[#46f2c8] focus:ring-4 focus:ring-[#46f2c8]/10"
+              placeholder="Ej: Informe de configuración de EmailPdf"
+            />
+
+            <div className="mt-4 rounded-2xl border border-white/10 bg-black/20 px-4 py-3">
+              <p className="text-[10px] uppercase tracking-[0.18em] text-white/40">
+                Vista previa
+              </p>
+
+              <p className="mt-2 text-sm font-bold text-white">
+                {normalizeReportDisplayTitle(docsTitleInput)}
+              </p>
+
+              <p className="mt-1 text-[11px] text-[#46f2c8]">
+                {createDocsSquadFileNameFromTitle(docsTitleInput)}
+              </p>
+            </div>
+
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setDocsTitleModalMessage(null);
+                  setDocsTitleInput("");
+                }}
+                className="rounded-2xl border border-white/10 px-5 py-3 text-[10px] uppercase tracking-widest text-white/70 transition-all hover:bg-white/10"
+              >
+                Cancelar
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  const currentMessage = docsTitleModalMessage;
+                  const currentTitle = docsTitleInput;
+
+                  setDocsTitleModalMessage(null);
+                  setDocsTitleInput("");
+
+                  void handleDocsSquadDownload(currentMessage, currentTitle);
+                }}
+                className="rounded-2xl bg-[#46f2c8] px-5 py-3 text-[10px] uppercase tracking-widest text-black transition-all hover:opacity-90 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+                disabled={!docsTitleInput.trim()}
+              >
+                Crear en Drive
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <style jsx global>{`
         .custom-scrollbar::-webkit-scrollbar {
