@@ -68,16 +68,30 @@ function buildSummary(sections: HealthSection[]) {
   );
 }
 
+function buildForwardHeaders(request: Request) {
+  const cookie = request.headers.get("cookie");
+
+  if (!cookie) {
+    return undefined;
+  }
+
+  return {
+    cookie,
+  };
+}
+
 async function fetchHealthSection(
   baseUrl: string,
   key: string,
   path: string,
-  message: string
+  message: string,
+  headers?: HeadersInit
 ): Promise<HealthSection> {
   try {
     const response = await fetch(`${baseUrl}${path}`, {
       method: "GET",
       cache: "no-store",
+      headers,
     });
 
     const data = await response.json().catch(() => null);
@@ -108,6 +122,7 @@ async function fetchHealthSection(
 
 export async function GET(request: Request) {
   const baseUrl = getBaseUrl(request);
+  const forwardedHeaders = buildForwardHeaders(request);
 
   const envHealth = getEnvHealth();
 
@@ -122,22 +137,31 @@ export async function GET(request: Request) {
     },
   ];
 
-  const [googleHealth, modelsHealth] = await Promise.all([
+  const [googleHealth, modelsHealth, emailHealth] = await Promise.all([
     fetchHealthSection(
       baseUrl,
       "google",
       "/api/health/google",
-      "Google OAuth, Drive y carpeta configurada."
+      "Google OAuth, Drive y carpeta configurada.",
+      forwardedHeaders
     ),
     fetchHealthSection(
       baseUrl,
       "models",
       "/api/health/models",
-      "Proveedores IA, modelos y límites de tokens."
+      "Proveedores IA, modelos y límites de tokens.",
+      forwardedHeaders
+    ),
+    fetchHealthSection(
+      baseUrl,
+      "email",
+      "/api/health/email",
+      "Email, sesión y conteo de mensajes.",
+      forwardedHeaders
     ),
   ]);
 
-  sections.push(googleHealth, modelsHealth);
+  sections.push(googleHealth, modelsHealth, emailHealth);
 
   const status = getWorstStatus(sections);
 
