@@ -2,7 +2,7 @@ import { google } from 'googleapis';
 import { getServerSession } from "next-auth/next";
 import { NextResponse } from 'next/server';
 // @ts-ignore
-import { authOptions } from "@/lib/auth";
+import { authOptions } from "@/src/lib/auth";
 
 export const dynamic = 'force-dynamic';
 
